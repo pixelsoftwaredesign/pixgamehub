@@ -6,3 +6,6 @@ __pycache__/
 Thumbs.db
 *.log
 /tmp/
+node_modules/
+*.lock
+package-lock.json
