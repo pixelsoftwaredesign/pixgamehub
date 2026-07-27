@@ -93,20 +93,12 @@ function showAuthUI(onSuccess) {
         const password = document.getElementById('auth-password').value;
         const errorEl = document.getElementById('auth-error');
         try {
-            let data;
-            if (_ws && _ws.readyState === 1) {
-                const action = isRegister ? '/auth/register' : '/auth/login';
-                data = await wsApiCall(action, { username, password });
-            } else {
-                const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-                const res = await fetch(API + endpoint.replace('/api', ''), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Erreur');
+            if (!_ws || _ws.readyState !== 1) {
+                errorEl.textContent = 'Connexion au serveur... reessayez dans 2s.';
+                return;
             }
+            const action = isRegister ? '/auth/register' : '/auth/login';
+            const data = await wsApiCall(action, { username, password });
             if (data.error) throw new Error(data.error);
             if (isRegister) {
                 pixHush('Operateur enregistre ! Connectez-vous.', 'success');
