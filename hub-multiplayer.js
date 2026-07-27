@@ -6,8 +6,8 @@
 (function () {
     'use strict';
 
-    const WS_PORT = 8081;
-    const WS_URL = `ws://${location.hostname}:${WS_PORT}`;
+    const WS_PROTO = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const WS_URL = `${WS_PROTO}//${location.host}`;
     const API_URL = `${location.origin}/api`;
 
     let ws = null;

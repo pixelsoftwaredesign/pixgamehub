@@ -29,8 +29,9 @@ from websockets.asyncio.server import serve
 # ─── Config ───────────────────────────────────────────────────────────────────
 PORT_HTTP = int(os.environ.get("PORT", 8080))
 PORT_WS = int(os.environ.get("PORT_WS", 8081))
+RAILWAY_MODE = os.environ.get("RAILWAY_ENVIRONMENT") is not None or os.environ.get("SINGLE_PORT") == "1"
 ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = ROOT / "server" / "pixgamehub.db"
+DB_PATH = Path(os.environ.get("DB_PATH", str(ROOT / "server" / "pixgamehub.db")))
 JWT_SECRET = os.environ.get("JWT_SECRET", "pix-game-hub-secret-key-2026")
 SALT_ROUNDS = 10000
 
@@ -504,6 +505,13 @@ async def ws_handler(websocket):
                     "rooms": [{"gameId": gid, "players": len(r.players)} for gid, r in rooms.items()],
                 }))
 
+            # ── ws_api (register/login/leaderboard via WS) ─────────
+            elif action == "ws_api":
+                api_path = msg.get("path", "")
+                api_body = msg.get("body", {})
+                resp = _handle_ws_api(api_path, api_body)
+                await websocket.send(json.dumps({"action": "ws_api_response", "id": msg.get("id"), **resp}))
+
     except websockets.exceptions.ConnectionClosed:
         pass
     finally:
@@ -539,6 +547,51 @@ async def _broadcast(game_id: str, data: dict, exclude: str = ""):
     for d in dead:
         rooms[game_id].remove_player(d)
 
+def _handle_ws_api(path: str, body: dict) -> dict:
+    if path == "/auth/register":
+        username = (body.get("username") or "").strip()
+        password = body.get("password") or ""
+        if not username or not password:
+            return {"error": "Nom d'utilisateur et mot de passe requis.", "status": 400}
+        if len(username) < 3 or len(password) < 4:
+            return {"error": "Username >= 3 car, password >= 4 car.", "status": 400}
+        pw_hash, salt = hash_password(password)
+        try:
+            with _db_lock:
+                conn = _get_db()
+                conn.execute("INSERT INTO operators (username, password_hash, salt) VALUES (?, ?, ?)",
+                             (username, pw_hash, salt))
+                conn.execute("INSERT INTO operator_wallets (username, balance) VALUES (?, 0.0)", (username,))
+                conn.commit()
+                conn.close()
+            return {"message": "Operateur enregistre avec succes.", "status": 201}
+        except sqlite3.IntegrityError:
+            return {"error": "Cet operateur existe deja.", "status": 409}
+        except Exception as e:
+            return {"error": str(e), "status": 500}
+    if path == "/auth/login":
+        username = body.get("username", "")
+        password = body.get("password", "")
+        with _db_lock:
+            conn = _get_db()
+            row = conn.execute("SELECT * FROM operators WHERE username = ?", (username,)).fetchone()
+            conn.close()
+        if not row or not verify_password(password, row["password_hash"], row["salt"]):
+            return {"error": "Identifiants invalides.", "status": 401}
+        token = make_token(username)
+        return {"token": token, "username": username, "status": 200}
+    if path.startswith("/leaderboard/"):
+        game_id = path.split("/")[-1]
+        with _db_lock:
+            conn = _get_db()
+            rows = conn.execute(
+                "SELECT username, score, relics, updated_at FROM game_scores WHERE game_id = ? ORDER BY score DESC LIMIT 10",
+                (game_id,)
+            ).fetchall()
+            conn.close()
+        return {"leaderboard": [dict(r) for r in rows], "status": 200}
+    return {"error": "unknown ws_api endpoint", "status": 404}
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  Main
@@ -560,23 +613,240 @@ def main():
     print("=" * 60)
     print("  PixGameHub Server — Pixel Software Design")
     print("=" * 60)
-    print(f"  Hub:        http://localhost:{PORT_HTTP}")
-    print(f"  API:        http://localhost:{PORT_HTTP}/api/games")
-    print(f"  Auth:       http://localhost:{PORT_HTTP}/api/auth/login")
-    print(f"  WebSocket:  ws://localhost:{PORT_WS}")
-    print()
-    print(f"  Games ({len(GAMES)}):")
-    for gid, g in GAMES.items():
-        mp = " [MP]" if g["multiplayer"] else ""
-        print(f"    {gid:20s} -> {g['name']:30s} ({g['genre']}){mp}")
-    print("=" * 60)
-    print()
-    t = threading.Thread(target=start_http, daemon=True)
-    t.start()
+
+    if RAILWAY_MODE:
+        print(f"  MODE:  Railway (single-port on {PORT_HTTP})")
+        print(f"  Hub:   http://localhost:{PORT_HTTP}")
+        print(f"  API:   http://localhost:{PORT_HTTP}/api/games")
+        print(f"  WS:    ws://localhost:{PORT_HTTP} (upgraded)")
+        print("=" * 60)
+        print()
+        try:
+            asyncio.run(start_ws_single_port())
+        except KeyboardInterrupt:
+            print("\n[Server] Shutting down.")
+    else:
+        print(f"  Hub:        http://localhost:{PORT_HTTP}")
+        print(f"  API:        http://localhost:{PORT_HTTP}/api/games")
+        print(f"  Auth:       http://localhost:{PORT_HTTP}/api/auth/login")
+        print(f"  WebSocket:  ws://localhost:{PORT_WS}")
+        print()
+        print(f"  Games ({len(GAMES)}):")
+        for gid, g in GAMES.items():
+            mp = " [MP]" if g["multiplayer"] else ""
+            print(f"    {gid:20s} -> {g['name']:30s} ({g['genre']}){mp}")
+        print("=" * 60)
+        print()
+        t = threading.Thread(target=start_http, daemon=True)
+        t.start()
+        try:
+            asyncio.run(start_ws())
+        except KeyboardInterrupt:
+            print("\n[Server] Shutting down.")
+
+def _handle_api_request(path: str, body_bytes: bytes = b"") -> tuple:
+    handler = PixGameHTTPHandler.__new__(PixGameHTTPHandler)
+    handler._api_result = None
+    handler._api_code = 200
+
+    if path == "/api/games":
+        return json.dumps(GAMES, ensure_ascii=False, indent=2), 200, "application/json; charset=utf-8"
+    if path == "/api/status":
+        data = {
+            "status": "online",
+            "brand": "Pixel Software Design",
+            "uptime": round(time.time() - _server_start_time, 1),
+            "games": len(GAMES),
+            "multiplayer_games": sum(1 for g in GAMES.values() if g["multiplayer"]),
+            "active_rooms": len(rooms),
+            "total_players": sum(len(r.players) for r in rooms.values()),
+            "rooms": {gid: len(r.players) for gid, r in rooms.items()},
+        }
+        return json.dumps(data, ensure_ascii=False, indent=2), 200, "application/json; charset=utf-8"
+    if path.startswith("/api/leaderboard/"):
+        game_id = path.split("/")[-1]
+        with _db_lock:
+            conn = _get_db()
+            rows = conn.execute(
+                "SELECT username, score, relics, updated_at FROM game_scores WHERE game_id = ? ORDER BY score DESC LIMIT 10",
+                (game_id,)
+            ).fetchall()
+            conn.close()
+        return json.dumps({"leaderboard": [dict(r) for r in rows]}, ensure_ascii=False), 200, "application/json; charset=utf-8"
+    if path.startswith("/api/pixsoftpay/wallet/"):
+        username = path.split("/")[-1]
+        with _db_lock:
+            conn = _get_db()
+            row = conn.execute("SELECT balance FROM operator_wallets WHERE username = ?", (username,)).fetchone()
+            if not row:
+                conn.execute("INSERT INTO operator_wallets (username, balance) VALUES (?, 0.0)", (username,))
+                conn.commit()
+                conn.close()
+                return json.dumps({"balance": 0.0}), 200, "application/json; charset=utf-8"
+            conn.close()
+        return json.dumps({"balance": row["balance"]}), 200, "application/json; charset=utf-8"
+    return None, 404, "text/plain"
+
+def _handle_api_post(path: str, body_bytes: bytes = b"") -> tuple:
     try:
-        asyncio.run(start_ws())
-    except KeyboardInterrupt:
-        print("\n[Server] Shutting down.")
+        body = json.loads(body_bytes) if body_bytes else {}
+    except Exception:
+        body = {}
+
+    if path == "/api/auth/register":
+        username = (body.get("username") or "").strip()
+        password = body.get("password") or ""
+        if not username or not password:
+            return json.dumps({"error": "Nom d'utilisateur et mot de passe requis."}), 400, "application/json"
+        if len(username) < 3 or len(password) < 4:
+            return json.dumps({"error": "Username >= 3 car, password >= 4 car."}), 400, "application/json"
+        pw_hash, salt = hash_password(password)
+        try:
+            with _db_lock:
+                conn = _get_db()
+                conn.execute("INSERT INTO operators (username, password_hash, salt) VALUES (?, ?, ?)",
+                             (username, pw_hash, salt))
+                conn.execute("INSERT INTO operator_wallets (username, balance) VALUES (?, 0.0)", (username,))
+                conn.commit()
+                conn.close()
+            return json.dumps({"message": "Operateur enregistre avec succes."}), 201, "application/json"
+        except sqlite3.IntegrityError:
+            return json.dumps({"error": "Cet operateur existe deja."}), 409, "application/json"
+        except Exception as e:
+            return json.dumps({"error": str(e)}), 500, "application/json"
+    if path == "/api/auth/login":
+        username = body.get("username", "")
+        password = body.get("password", "")
+        with _db_lock:
+            conn = _get_db()
+            row = conn.execute("SELECT * FROM operators WHERE username = ?", (username,)).fetchone()
+            conn.close()
+        if not row or not verify_password(password, row["password_hash"], row["salt"]):
+            return json.dumps({"error": "Identifiants invalides."}), 401, "application/json"
+        token = make_token(username)
+        return json.dumps({"token": token, "username": username}), 200, "application/json"
+    if path == "/api/pixsoftpay/topup":
+        username = body.get("username", "")
+        amount = body.get("amount", 0)
+        if not username or not amount or amount <= 0:
+            return json.dumps({"error": "Parametres invalides."}), 400, "application/json"
+        with _db_lock:
+            conn = _get_db()
+            conn.execute("""
+                INSERT INTO operator_wallets (username, balance, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(username) DO UPDATE SET balance = balance + excluded.balance, updated_at = CURRENT_TIMESTAMP
+            """, (username, amount))
+            row = conn.execute("SELECT balance FROM operator_wallets WHERE username = ?", (username,)).fetchone()
+            conn.commit()
+            conn.close()
+        return json.dumps({"message": "Rechargement effectue.", "newBalance": row["balance"]}), 200, "application/json"
+    if path == "/api/pixsoftpay/buy":
+        username = body.get("username", "")
+        item_id = body.get("itemId", "")
+        price = body.get("price", 0)
+        if not username or not item_id or price <= 0:
+            return json.dumps({"error": "Donnees d'achat invalides."}), 400, "application/json"
+        with _db_lock:
+            conn = _get_db()
+            row = conn.execute("SELECT balance FROM operator_wallets WHERE username = ?", (username,)).fetchone()
+            if not row or row["balance"] < price:
+                conn.close()
+                return json.dumps({"error": "Fonds insuffisants."}), 400, "application/json"
+            conn.execute("UPDATE operator_wallets SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?",
+                         (price, username))
+            conn.execute("INSERT INTO market_transactions (username, item_id, amount) VALUES (?, ?, ?)",
+                         (username, item_id, price))
+            conn.commit()
+            conn.close()
+        return json.dumps({"message": f"Achat de [{item_id}] valide."}), 200, "application/json"
+    return json.dumps({"error": "unknown endpoint"}), 404, "application/json"
+
+async def start_ws_single_port():
+    from websockets.http11 import Response as WSResponse
+
+    async def process_request(connection, request):
+        path = request.path
+        if not path:
+            path = "/"
+        method = request.method
+        req_headers = dict(request.headers)
+
+        if req_headers.get("Upgrade", "").lower() == "websocket":
+            return None
+
+        body = b""
+        if method == "POST":
+            cl = int(req_headers.get("Content-Length", 0))
+            if cl > 0:
+                body = await connection.recv()
+
+        if path.startswith("/api/"):
+            if method == "POST":
+                resp_body, code, ctype = _handle_api_post(path, body)
+            else:
+                resp_body, code, ctype = _handle_api_request(path)
+            if resp_body is not None:
+                resp_bytes = resp_body.encode() if isinstance(resp_body, str) else resp_body
+                from websockets.datastructures import Headers
+                headers = Headers()
+                headers["Content-Type"] = ctype
+                headers["Content-Length"] = str(len(resp_bytes))
+                headers["Access-Control-Allow-Origin"] = "*"
+                headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+                headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+                return WSResponse(code, "OK" if code == 200 else "Error", headers, resp_bytes)
+
+        if method == "OPTIONS":
+            from websockets.datastructures import Headers
+            headers = Headers()
+            headers["Access-Control-Allow-Origin"] = "*"
+            headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+            headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+            return WSResponse(200, "OK", headers, b"")
+
+        file_path = ROOT / path.lstrip("/")
+        if file_path.is_file():
+            ext = file_path.suffix.lower()
+            ctype = MIME_OVERRIDES.get(ext) or {
+                ".html": "text/html; charset=utf-8",
+                ".css": "text/css; charset=utf-8",
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".gif": "image/gif",
+                ".ico": "image/x-icon",
+                ".mp3": "audio/mpeg",
+                ".wav": "audio/wav",
+            }.get(ext, "application/octet-stream")
+            data = file_path.read_bytes()
+            from websockets.datastructures import Headers
+            headers = Headers()
+            headers["Content-Type"] = ctype
+            headers["Content-Length"] = str(len(data))
+            headers["Cache-Control"] = "no-cache"
+            headers["Access-Control-Allow-Origin"] = "*"
+            return WSResponse(200, "OK", headers, data)
+
+        index = ROOT / "index.html"
+        if index.is_file():
+            data = index.read_bytes()
+            from websockets.datastructures import Headers
+            headers = Headers()
+            headers["Content-Type"] = "text/html; charset=utf-8"
+            headers["Content-Length"] = str(len(data))
+            headers["Access-Control-Allow-Origin"] = "*"
+            return WSResponse(200, "OK", headers, data)
+
+        from websockets.datastructures import Headers
+        headers = Headers()
+        headers["Content-Type"] = "text/plain"
+        body_404 = b"404 Not Found"
+        headers["Content-Length"] = str(len(body_404))
+        return WSResponse(404, "Not Found", headers, body_404)
+
+    async with serve(ws_handler, "0.0.0.0", PORT_HTTP, process_request=process_request):
+        print(f"[WS+HTTP] Unified server on port {PORT_HTTP}")
+        await asyncio.Future()
 
 if __name__ == "__main__":
     main()

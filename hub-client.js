@@ -12,6 +12,18 @@ let _ws = null;
 let _username = localStorage.getItem('pix_username') || '';
 let _token = localStorage.getItem('pix_token') || '';
 
+let _wsApiCallbacks = {};
+let _wsApiId = 0;
+function wsApiCall(path, body) {
+    return new Promise((resolve, reject) => {
+        if (!_ws || _ws.readyState !== 1) return reject(new Error('WS not connected'));
+        const id = ++_wsApiId;
+        _wsApiCallbacks[id] = { resolve, reject };
+        _ws.send(JSON.stringify({ action: 'ws_api', id, path, body }));
+        setTimeout(() => { if (_wsApiCallbacks[id]) { _wsApiCallbacks[id].reject(new Error('Timeout')); delete _wsApiCallbacks[id]; } }, 8000);
+    });
+}
+
 // ─── pixHush (Toast Notifications) ──────────────────────────────────────────
 function pixHush(message, type) {
     type = type || 'info';
@@ -81,14 +93,21 @@ function showAuthUI(onSuccess) {
         const password = document.getElementById('auth-password').value;
         const errorEl = document.getElementById('auth-error');
         try {
-            const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-            const res = await fetch(API + endpoint.replace('/api', ''), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Erreur');
+            let data;
+            if (_ws && _ws.readyState === 1) {
+                const action = isRegister ? '/auth/register' : '/auth/login';
+                data = await wsApiCall(action, { username, password });
+            } else {
+                const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
+                const res = await fetch(API + endpoint.replace('/api', ''), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erreur');
+            }
+            if (data.error) throw new Error(data.error);
             if (isRegister) {
                 pixHush('Operateur enregistre ! Connectez-vous.', 'success');
                 isRegister = false;
@@ -316,8 +335,8 @@ function showMarket(username) {
 // ─── WebSocket Manager ──────────────────────────────────────────────────────
 let _messenger = null;
 function connectWS(onReady) {
-    const wsPort = 8081;
-    const ws = new WebSocket(`ws://${location.hostname}:${wsPort}`);
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${wsProtocol}//${location.host}`);
 
     ws.onopen = () => {
         console.log('[PixHub] WS connected');
@@ -330,6 +349,11 @@ function connectWS(onReady) {
     ws.onmessage = (e) => {
         let msg;
         try { msg = JSON.parse(e.data); } catch { return; }
+        if (msg.action === 'ws_api_response' && msg.id && _wsApiCallbacks[msg.id]) {
+            _wsApiCallbacks[msg.id].resolve(msg);
+            delete _wsApiCallbacks[msg.id];
+            return;
+        }
         if (msg.action === 'auth_ok') pixHush(`Connecte: ${msg.username}`, 'success');
         if (msg.action === 'chat_history' && _messenger) _messenger.handleChatHistory(msg);
         if (msg.action === 'receive_chat_message' && _messenger) _messenger.handleChatMessage(msg);
