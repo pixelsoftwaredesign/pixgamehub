@@ -6,9 +6,10 @@
 (function () {
 'use strict';
 
-var IS_MOBILE = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-    || ('ontouchstart' in window && window.innerWidth <= 1024);
-if (!IS_MOBILE) return;
+var IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+var IS_SMALL = window.innerWidth <= 1024 || window.innerHeight <= 1024;
+var IS_TABLET_UA = /iPad|iPod|Android|Tablet/i.test(navigator.userAgent);
+if (!IS_TOUCH && !IS_TABLET_UA) return;
 
 var _held = {};
 
