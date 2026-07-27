@@ -762,87 +762,90 @@ def _handle_api_post(path: str, body_bytes: bytes = b"") -> tuple:
         return json.dumps({"message": f"Achat de [{item_id}] valide."}), 200, "application/json"
     return json.dumps({"error": "unknown endpoint"}), 404, "application/json"
 
+
 async def start_ws_single_port():
     from websockets.http11 import Response as WSResponse
+    from websockets.datastructures import Headers as WSHeaders
 
     async def process_request(connection, request):
-        path = request.path
-        if not path:
-            path = "/"
-        method = request.method
-        req_headers = dict(request.headers)
+        path = request.path or "/"
+        hdrs = dict(request.headers)
 
-        if req_headers.get("Upgrade", "").lower() == "websocket":
+        if hdrs.get("upgrade", "").lower() == "websocket":
             return None
 
-        body = b""
-        if method == "POST":
-            cl = int(req_headers.get("Content-Length", 0))
-            if cl > 0:
-                body = await connection.recv()
-
         if path.startswith("/api/"):
-            if method == "POST":
-                resp_body, code, ctype = _handle_api_post(path, body)
+            if path == "/api/games":
+                body = json.dumps(GAMES, ensure_ascii=False, indent=2).encode()
+            elif path == "/api/status":
+                data = {
+                    "status": "online", "brand": "Pixel Software Design",
+                    "uptime": round(time.time() - _server_start_time, 1),
+                    "games": len(GAMES),
+                    "multiplayer_games": sum(1 for g in GAMES.values() if g["multiplayer"]),
+                    "active_rooms": len(rooms),
+                    "total_players": sum(len(r.players) for r in rooms.values()),
+                }
+                body = json.dumps(data, ensure_ascii=False).encode()
+            elif path.startswith("/api/leaderboard/"):
+                game_id = path.split("/")[-1]
+                with _db_lock:
+                    conn = _get_db()
+                    rows = conn.execute(
+                        "SELECT username, score, relics, updated_at FROM game_scores WHERE game_id = ? ORDER BY score DESC LIMIT 10",
+                        (game_id,)
+                    ).fetchall()
+                    conn.close()
+                body = json.dumps({"leaderboard": [dict(r) for r in rows]}).encode()
+            elif path.startswith("/api/pixsoftpay/wallet/"):
+                username = path.split("/")[-1]
+                with _db_lock:
+                    conn = _get_db()
+                    row = conn.execute("SELECT balance FROM operator_wallets WHERE username = ?", (username,)).fetchone()
+                    if not row:
+                        conn.execute("INSERT INTO operator_wallets (username, balance) VALUES (?, 0.0)", (username,))
+                        conn.commit(); conn.close()
+                        body = json.dumps({"balance": 0.0}).encode()
+                    else:
+                        conn.close()
+                        body = json.dumps({"balance": row["balance"]}).encode()
             else:
-                resp_body, code, ctype = _handle_api_request(path)
-            if resp_body is not None:
-                resp_bytes = resp_body.encode() if isinstance(resp_body, str) else resp_body
-                from websockets.datastructures import Headers
-                headers = Headers()
-                headers["Content-Type"] = ctype
-                headers["Content-Length"] = str(len(resp_bytes))
-                headers["Access-Control-Allow-Origin"] = "*"
-                headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-                headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-                return WSResponse(code, "OK" if code == 200 else "Error", headers, resp_bytes)
+                body = json.dumps({"error": "unknown endpoint"}).encode()
+                h = WSHeaders()
+                h["Content-Type"] = "application/json; charset=utf-8"
+                h["Content-Length"] = str(len(body))
+                h["Access-Control-Allow-Origin"] = "*"
+                return WSResponse(404, "Not Found", h, body)
 
-        if method == "OPTIONS":
-            from websockets.datastructures import Headers
-            headers = Headers()
-            headers["Access-Control-Allow-Origin"] = "*"
-            headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-            headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-            return WSResponse(200, "OK", headers, b"")
+            h = WSHeaders()
+            h["Content-Type"] = "application/json; charset=utf-8"
+            h["Content-Length"] = str(len(body))
+            h["Access-Control-Allow-Origin"] = "*"
+            return WSResponse(200, "OK", h, body)
 
-        file_path = ROOT / path.lstrip("/")
-        if file_path.is_file():
-            ext = file_path.suffix.lower()
-            ctype = MIME_OVERRIDES.get(ext) or {
-                ".html": "text/html; charset=utf-8",
-                ".css": "text/css; charset=utf-8",
-                ".png": "image/png",
-                ".jpg": "image/jpeg",
-                ".gif": "image/gif",
-                ".ico": "image/x-icon",
-                ".mp3": "audio/mpeg",
-                ".wav": "audio/wav",
+        fp = ROOT / path.lstrip("/") if path != "/" else ROOT / "index.html"
+        if not fp.is_file():
+            fp = ROOT / "index.html"
+        if fp.is_file():
+            ext = fp.suffix.lower()
+            ct = MIME_OVERRIDES.get(ext) or {
+                ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
+                ".png": "image/png", ".jpg": "image/jpeg", ".gif": "image/gif",
+                ".ico": "image/x-icon", ".mp3": "audio/mpeg", ".wav": "audio/wav",
             }.get(ext, "application/octet-stream")
-            data = file_path.read_bytes()
-            from websockets.datastructures import Headers
-            headers = Headers()
-            headers["Content-Type"] = ctype
-            headers["Content-Length"] = str(len(data))
-            headers["Cache-Control"] = "no-cache"
-            headers["Access-Control-Allow-Origin"] = "*"
-            return WSResponse(200, "OK", headers, data)
+            data = fp.read_bytes()
+            h = WSHeaders()
+            h["Content-Type"] = ct
+            h["Content-Length"] = str(len(data))
+            h["Access-Control-Allow-Origin"] = "*"
+            h["Cache-Control"] = "no-cache"
+            return WSResponse(200, "OK", h, data)
 
-        index = ROOT / "index.html"
-        if index.is_file():
-            data = index.read_bytes()
-            from websockets.datastructures import Headers
-            headers = Headers()
-            headers["Content-Type"] = "text/html; charset=utf-8"
-            headers["Content-Length"] = str(len(data))
-            headers["Access-Control-Allow-Origin"] = "*"
-            return WSResponse(200, "OK", headers, data)
-
-        from websockets.datastructures import Headers
-        headers = Headers()
-        headers["Content-Type"] = "text/plain"
-        body_404 = b"404 Not Found"
-        headers["Content-Length"] = str(len(body_404))
-        return WSResponse(404, "Not Found", headers, body_404)
+        b404 = b"404 Not Found"
+        h = WSHeaders()
+        h["Content-Type"] = "text/plain"
+        h["Content-Length"] = str(len(b404))
+        return WSResponse(404, "Not Found", h, b404)
 
     async with serve(ws_handler, "0.0.0.0", PORT_HTTP, process_request=process_request):
         print(f"[WS+HTTP] Unified server on port {PORT_HTTP}")
