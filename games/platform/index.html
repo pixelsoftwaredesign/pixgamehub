@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Désert Aventure - Le Petit Explorateur</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="ui-overlay">
+            <a href="../../index.html" id="back-btn">← Hub</a>
+            <div id="hud">
+                <span id="hud-score">💎 0</span>
+                <span id="hud-lives">❤️ 3</span>
+                <span id="hud-level">Dune des Égarés</span>
+                <span id="hud-power"></span>
+            </div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="start-screen" class="screen">
+            <h1>Désert Aventure</h1>
+            <h2>Le Petit Explorateur</h2>
+            <p>Guide le petit explorateur à travers le désert!</p>
+            <p class="controls">Flèches/WASD: Bouger | Espace: Sauter | Échap: Pause</p>
+            <button onclick="game.startGame()">Jouer</button>
+            <button onclick="game.loadGame()">Charger</button>
+        </div>
+        <div id="pause-screen" class="screen hidden">
+            <h2>Pause</h2>
+            <button onclick="game.resume()">Reprendre</button>
+            <button onclick="game.saveGame()">Sauvegarder</button>
+            <button onclick="game.quitToMenu()">Menu</button>
+        </div>
+        <div id="death-screen" class="screen hidden">
+            <h2>Perdu!</h2>
+            <p id="death-msg"></p>
+            <button onclick="game.retryLevel()">Réessayer</button>
+        </div>
+        <div id="win-screen" class="screen hidden">
+            <h2>Niveau Terminé!</h2>
+            <p id="win-msg"></p>
+            <button id="next-btn" onclick="game.nextLevel()">Suivant</button>
+        </div>
+        <div id="gameover-screen" class="screen hidden">
+            <h2>Game Over</h2>
+            <p id="final-score"></p>
+            <button onclick="game.startGame()">Recommencer</button>
+            <button onclick="game.quitToMenu()">Menu</button>
+        </div>
+        <div id="victory-screen" class="screen hidden">
+            <h1>Victoire!</h1>
+            <p>Tu as conquis le désert!</p>
+            <p id="victory-score"></p>
+            <button onclick="game.startGame()">Rejouer</button>
+            <button onclick="game.quitToMenu()">Menu</button>
+        </div>
+    </div>
+    <script src="game.js"></script>
+    <script src="../../shared/music.js"></script>
+</body>
+</html>

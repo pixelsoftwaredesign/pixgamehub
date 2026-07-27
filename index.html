@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Zone - Tous les Jeux</title>
+    <link rel="stylesheet" href="hub.css">
+</head>
+<body>
+    <div id="hub-status-bar">
+        <style>
+            #hub-status-bar{position:fixed;top:0;left:0;right:0;height:40px;background:linear-gradient(135deg,#1a0a08,#0a0a1a);border-bottom:1px solid #2a2a3a;display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:1000;font-family:monospace;font-size:12px}
+            #hub-status-bar .sl{display:flex;align-items:center;gap:16px}
+            #hub-status-bar .sr{display:flex;align-items:center;gap:16px}
+            #hub-status-bar .brand-tag{color:#d4a017;font-weight:bold;letter-spacing:2px;font-size:11px}
+            #hub-status-bar .conn-dot{width:8px;height:8px;border-radius:50%;background:#c1121f;transition:background 0.3s}
+            #hub-status-bar .conn-dot.connected{background:#44cc44}
+            #hub-status-bar .stat-chip{background:rgba(255,255,255,0.05);border:1px solid #333;padding:3px 10px;border-radius:10px;color:#aaa;font-size:11px}
+            #hub-status-bar .stat-chip span{color:#d4a017;font-weight:bold}
+            #hub-status-bar .uptime{color:#666;font-size:10px}
+            #hub-status-bar .hub-action-btn{background:#33151b;border:1px solid #8d3629;color:#e2a03d;padding:4px 10px;border-radius:6px;font-family:monospace;font-size:10px;cursor:pointer;font-weight:bold;transition:background 0.2s}
+            #hub-status-bar .hub-action-btn:hover{background:#8d3629;color:#fff}
+        </style>
+        <div class="sl">
+            <span class="brand-tag">&#9670; PIXEL SOFTWARE DESIGN</span>
+            <span class="stat-chip">Jeux: <span id="stat-games">12</span></span>
+            <span class="stat-chip">En ligne: <span id="stat-players">0</span></span>
+            <span class="stat-chip">Salles: <span id="stat-rooms">0</span></span>
+        </div>
+        <div class="sr">
+            <button class="hub-action-btn" onclick="showLeaderboard('carthage_plat')">CLASSEMENT</button>
+            <button class="hub-action-btn" onclick="window.open('https://pixelsoftwaredesign.xyz/pixsoftpay/','_blank')">PIXSOFTPAY</button>
+            <button class="hub-action-btn" onclick="window.open('https://pixelsoftwaredesign.xyz/pixsoftpay/wallet/','_blank')">WALLET</button>
+            <span class="uptime" id="stat-uptime"></span>
+            <div class="conn-dot" id="conn-dot" title="WebSocket"></div>
+        </div>
+    </div>
+    <div id="particles-bg"></div>
+
+    <header style="padding-top:60px">
+        <h1>🎮 GAME ZONE 🎮</h1>
+        <p class="tagline">Collection de jeux créés avec passion</p>
+    </header>
+
+    <div id="games-grid">
+        <!-- JEU 1: Plateforme Désert -->
+        <div class="game-card" onclick="location.href='games/platform/index.html'">
+            <div class="game-preview" id="preview-platform">
+                <canvas class="preview-canvas" data-game="platform"></canvas>
+            </div>
+            <div class="game-info">
+                <span class="game-genre">🏃 Plateforme</span>
+                <h2>Désert Aventure</h2>
+                <p>Le Petit Explorateur affronte scorpions et serpents dans le désert. 3 niveaux, power-ups, boss!</p>
+            <div class="game-tags">
+                    <span class="tag">2D</span>
+                    <span class="tag">Solo</span>
+                    <span class="tag">3 Niveaux</span>
+                </div>
+            </div>
+            <div class="play-btn">JOUER</div>
+        </div>
+
+        <!-- JEU 2: Kung Fu Arena -->
+        <div class="game-card" onclick="location.href='games/fight/index.html'">
+            <div class="game-preview" id="preview-fight">
+                <canvas class="preview-canvas" data-game="fight"></canvas>
+            </div>
+            <div class="game-info">
+                <span class="game-genre">🥊 Combat</span>
+                <h2>Kung Fu Arena</h2>
+                <p>Combat de rue multi-joueur! 4 combattants, effets visuels, combos et rounds.</p>
+                <div class="game-tags">
+                    <span class="tag">2 Joueurs</span>
+                    <span class="tag">Arts Martiaux</span>
+                    <span class="tag">VS</span>
+                </div>
+            </div>
+            <div class="play-btn">JOUER</div>
+        </div>
+
+        <!-- JEU 3: Fort2D Battle Royale -->
+        <div class="game-card" onclick="location.href='games/battle/index.html'">
+            <div class="game-preview" id="preview-battle">
+                <canvas class="preview-canvas" data-game="battle"></canvas>
+            </div>
+            <div class="game-info">
+                <span class="game-genre">🔫 Battle Royale</span>
+                <h2>Fort2D</h2>
+                <p>50 joueurs, construction, armes, zone qui rétrécit. Dernier en vie gagne!</p>
+                <div class="game-tags">
+                    <span class="tag">50 Joueurs</span>
+                    <span class="tag">Construction</span>
+                    <span class="tag">Armes</span>
+                </div>
+            </div>
+            <div class="play-btn">JOUER</div>
+        </div>
+
+        <!-- JEU 4: Naruto vs Zoro -->
+        <div class="game-card" onclick="location.href='games/anime/index.html'">
+            <div class="game-preview" id="preview-anime">
+                <canvas class="preview-canvas" data-game="anime"></canvas>
+            </div>
+            <div class="game-info">
+                <span class="game-genre">⚡ Anime Battle</span>
+                <h2>Naruto vs Zoro</h2>
+                <p>Lobby + combat anime! Rasengan, Santoryu, effets spéciaux. 6 cartes aléatoires!</p>
+                <div class="game-tags">
+                    <span class="tag">Lobby</span>
+                    <span class="tag">2 Joueurs</span>
+                    <span class="tag">6 Maps</span>
+                </div>
+            </div>
+            <div class="play-btn">JOUER</div>
+        </div>
+
+        <!-- JEU 5: Pixel Arena -->
+        <div class="game-card" onclick="location.href='games/pixel/index.html'">
+            <div class="game-preview" id="preview-pixel">
+                <canvas class="preview-canvas" data-game="pixel"></canvas>
+            </div>
+            <div class="game-info">
+                <span class="game-genre">⚔️ Pixel Arena</span>
+                <h2>Pixel Arena</h2>
+                <p>Combat pixel multi-joueur! 6 personnages, 3 modes, 5 maps. Versus, Coop ou Free for All!</p>
+                <div class="game-tags">
+                    <span class="tag">Multi-Joueur</span>
+                    <span class="tag">Pixel Art</span>
+                    <span class="tag">6 Persos</span>
+                </div>
+            </div>
+            <div class="play-btn">JOUER</div>
+        </div>
+
+        <!-- JEU 6: Jungle Desert Scorpion -->
+        <div class="game-card" onclick="location.href='games/jungle/index.html'">
+            <div class="game-preview" id="preview-jungle">
+                <canvas class="preview-canvas" data-game="jungle"></canvas>
+            </div>
+            <div class="game-info">
+                <span class="game-genre">🦂 Aventure</span>
+                <h2>Jungle Desert Scorpion</h2>
+                <p>4 héros, Scorpion Forge, vagues de scorpions. Solo, Coop ou Horde! Crée ton avatar!</p>
+                <div class="game-tags">
+                    <span class="tag">4 Archétypes</span>
+                    <span class="tag">Avatar</span>
+                    <span class="tag">Vagues</span>
+                </div>
+            </div>
+            <div class="play-btn">JOUER</div>
+        </div>
+
+        <!-- JEU 7: Manga Fighting Arena -->
+        <div class="game-card" onclick="location.href='games/manga/index.html'">
+            <div class="game-preview" id="preview-manga">
+                <canvas class="preview-canvas" data-game="manga"></canvas>
+            </div>
+            <div class="game-info">
+                <span class="game-genre">⚔️ Manga Battle</span>
+                <h2>Manga Fighting Arena</h2>
+                <p>6 combattants anime, effets manga, speed lines, criticals. Versus, Coop ou Tag Team!</p>
+                <div class="game-tags">
+                    <span class="tag">Manga</span>
+                    <span class="tag">2 Joueurs</span>
+                    <span class="tag">6 Persos</span>
+                </div>
+            </div>
+            <div class="play-btn">JOUER</div>
+        </div>
+
+        <!-- JEU 8: Le Voleur de Bagdad -->
+        <div class="game-card" onclick="location.href='games/arabparkour/index.html'">
+            <div class="game-preview" id="preview-arabparkour">
+                <canvas class="preview-canvas" data-game="arabparkour"></canvas>
+            </div>
+            <div class="game-info">
+                <span class="game-genre">🏃 Parkour Arabe</span>
+                <h2>Le Voleur de Bagdad</h2>
+                <p>Saute de toit en toit dans la cité impériale! Sauts périlleux, courses murales, jets de sable contre les gardes du Sultan.</p>
+                <div class="game-tags">
+                    <span class="tag">Parkour</span>
+                    <span class="tag">Solo</span>
+                    <span class="tag">5 Artéfacts</span>
+                </div>
+            </div>
+            <div class="play-btn">JOUER</div>
+        </div>
+
+        <!-- JEU 9: Shadows in the City -->
+        <div class="game-card" onclick="location.href='games/shadows/index.html'">
+            <div class="game-preview" id="preview-shadows">
+                <canvas class="preview-canvas" data-game="shadows"></canvas>
+            </div>
+            <div class="game-info">
+                <span class="game-genre">🕵️ Social Deduction</span>
+                <h2>Shadows in the City</h2>
+                <p>Assassin, Police ou Citoyen ? Élimine, protège ou survie dans la cité nocturne. Couteau, pistolet, grenades!</p>
+                <div class="game-tags">
+                    <span class="tag">3 Rôles</span>
+                    <span class="tag">Armes</span>
+                    <span class="tag">Stealth</span>
+                </div>
+            </div>
+            <div class="play-btn">JOUER</div>
+        </div>
+
+        <!-- JEU 10: Empire de Carthage -->
+        <div class="game-card" onclick="location.href='games/carthage/index.html'">
+            <div class="game-preview" id="preview-carthage">
+                <canvas class="preview-canvas" data-game="carthage"></canvas>
+            </div>
+            <div class="game-info">
+                <span class="game-genre">🏛️ Stratégie</span>
+                <h2>Empire de Carthage</h2>
+                <p>Conquiers la Méditerranée ! Gère ressources, armée, et provinces. Fond d'écran cinématique de la cité punique. Alphabet carthaginois inclus.</p>
+                <div class="game-tags">
+                    <span class="tag">Stratégie</span>
+                    <span class="tag">Empire</span>
+                    <span class="tag">16 Provinces</span>
+                </div>
+            </div>
+            <div class="play-btn">JOUER</div>
+        </div>
+
+        <!-- JEU 11: Le Voleur de Carthage -->
+        <div class="game-card" onclick="location.href='games/carthage_platformer/index.html'">
+            <div class="game-preview" id="preview-carthage-plat">
+                <canvas class="preview-canvas" data-game="carthage_platformer"></canvas>
+            </div>
+            <div class="game-info">
+                <span class="game-genre">🏃 Platformer</span>
+                <h2>Le Voleur de Carthage</h2>
+                <p>Zayd parcourt les toits de l'ancienne Carthage ! Saute de toit en toit, collecte les artéfacts, admire le port Cothon et Byrsa.</p>
+                <div class="game-tags">
+                    <span class="tag">Parallaxe</span>
+                    <span class="tag">Zayd</span>
+                    <span class="tag">Toits</span>
+                </div>
+            </div>
+            <div class="play-btn">JOUER</div>
+        </div>
+
+        <!-- JEU 12: Moteur 2D -->
+        <div class="game-card engine-card" onclick="location.href='engine/index.html'">
+            <div class="game-preview" id="preview-engine">
+                <canvas class="preview-canvas" data-game="engine"></canvas>
+            </div>
+            <div class="game-info">
+                <span class="game-genre">⚙️ Moteur Graphique</span>
+                <h2>Moteur 2D Intégral</h2>
+                <p>Génération procédurale, parallax multi-calques, éclairage dynamique, particules, vent et styles visuels. Empire Arabe inclus!</p>
+                <div class="game-tags">
+                    <span class="tag">5 Thèmes</span>
+                    <span class="tag">Ghibli/Manga</span>
+                    <span class="tag">Zellige</span>
+                </div>
+            </div>
+            <div class="play-btn">LANCER</div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-brand">
+            <div class="brand-logo">
+                <span class="brand-icon">◆</span>
+                <span class="brand-name">PIXEL SOFTWARE DESIGN</span>
+            </div>
+            <div class="footer-links">
+                <a href="#">Accueil</a>
+                <a href="#">À propos</a>
+                <a href="#">Contact</a>
+            </div>
+        </div>
+        <div class="footer-divider"></div>
+        <p class="footer-copy">© 2026 Pixel Software Design — Tous les jeux jouables dans le navigateur</p>
+        <p class="footer-tech">HTML5 Canvas · JavaScript · WebGL 2.0 · TypeScript · ECS Architecture</p>
+    </footer>
+
+    <script src="hub-client.js"></script>
+    <script src="hub.js"></script>
+</body>
+</html>

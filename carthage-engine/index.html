@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Software Design - Carthage Engine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #12090c;
+            font-family: monospace;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #e2a03d;
+            font-size: 14px;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-overlay">
+        <h1>CARTHAGE: LES HAUTS QUARTIERS</h1>
+        <p>Moteur ECS / WebGL 2.0 — Pixel Software Design</p>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script type="module" src="/src/index.ts"></script>
+</body>
+</html>

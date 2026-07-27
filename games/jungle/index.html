@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jungle Desert Scorpion</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <a href="../../index.html" id="back-btn">← Retour Hub</a>
+
+        <!-- MENU PRINCIPAL -->
+        <div id="menu-screen" class="screen active">
+            <div class="title-art">
+                <div class="scorpion-icon">🦂</div>
+                <h1>JUNGLE DESERT<br><span>SCORPION</span></h1>
+            </div>
+            <div class="menu-buttons">
+                <button class="btn-main" onclick="showScreen('mode-screen')">▶ JOUER</button>
+                <button class="btn-main" onclick="showScreen('forge-screen')">⚒️ SCORPION FORGE</button>
+                <button class="btn-main" onclick="showScreen('howto-screen')">📖 COMMENT JOUER</button>
+            </div>
+        </div>
+
+        <!-- MODE DE JEU -->
+        <div id="mode-screen" class="screen">
+            <h2>MODE DE JEU</h2>
+            <div class="mode-cards">
+                <div class="mode-card" onclick="startGame('solo')">
+                    <div class="mode-icon">🏜️</div>
+                    <h3>SOLO</h3>
+                    <p>Affronte les scorpions du désert seul</p>
+                </div>
+                <div class="mode-card" onclick="startGame('coop')">
+                    <div class="mode-icon">👥</div>
+                    <h3>COOPÉRATION</h3>
+                    <p>Joue avec un ami contre les scorpions</p>
+                </div>
+                <div class="mode-card" onclick="startGame('horde')">
+                    <div class="mode-icon">⚔️</div>
+                    <h3>LA HORDE</h3>
+                    <p>Vague infinie de scorpions, survive le plus longtemps</p>
+                </div>
+            </div>
+            <button class="btn-back" onclick="showScreen('menu-screen')">← Retour</button>
+        </div>
+
+        <!-- SÉLECTION PERSONNAGE -->
+        <div id="select-screen" class="screen">
+            <h2>CHOISIS TON HÉROS</h2>
+            <div class="select-layout">
+                <div class="char-carousel">
+                    <button class="arrow-btn" onclick="prevChar(-1)">◀</button>
+                    <div class="char-display">
+                        <canvas id="char-preview" width="200" height="280"></canvas>
+                        <div class="char-name" id="sel-char-name">RANGER</div>
+                        <div class="char-role" id="sel-char-role">Éclaireur</div>
+                    </div>
+                    <button class="arrow-btn" onclick="prevChar(1)">▶</button>
+                </div>
+                <div class="stats-panel">
+                    <h3 id="sel-class-name">🦁 RANGER</h3>
+                    <div class="stat-row"><span>💪 Force</span><div class="stat-bar-bg"><div class="stat-bar" id="stat-str" style="width:30%"></div></div></div>
+                    <div class="stat-row"><span>⚡ Agilité</span><div class="stat-bar-bg"><div class="stat-bar agility" id="stat-agi" style="width:90%"></div></div></div>
+                    <div class="stat-row"><span>🎯 Précision</span><div class="stat-bar-bg"><div class="stat-bar precision" id="stat-pre" style="width:60%"></div></div></div>
+                    <div class="stat-row"><span>✨ Esprit</span><div class="stat-bar-bg"><div class="stat-bar spirit" id="stat-spi" style="width:50%"></div></div></div>
+                    <div class="stat-row"><span>❤️ Santé</span><div class="stat-bar-bg"><div class="stat-bar health" id="stat-hp" style="width:70%"></div></div></div>
+                    <div class="char-desc" id="sel-char-desc">Rapide et furtif. Ses attaques à distance ignorent les défenses des scorpions dans la végétation dense.</div>
+                    <div class="select-buttons">
+                        <button class="btn-action" onclick="confirmChar()">✅ PRÊT !</button>
+                        <button class="btn-action secondary" onclick="showScreen('forge-screen')">⚒️ PERSONNALISER</button>
+                    </div>
+                </div>
+            </div>
+            <button class="btn-back" onclick="showScreen('mode-screen')">← Retour</button>
+        </div>
+
+        <!-- SCORPION FORGE (CRÉATION D'AVATAR) -->
+        <div id="forge-screen" class="screen">
+            <h2>⚒️ SCORPION FORGE</h2>
+            <div class="forge-layout">
+                <div class="forge-preview">
+                    <canvas id="forge-canvas" width="250" height="320"></canvas>
+                    <div class="forge-char-name" id="forge-char-name">RANGER</div>
+                </div>
+                <div class="forge-options">
+                    <div class="forge-tabs">
+                        <button class="tab active" onclick="switchTab(this,'tab-face')">Visage</button>
+                        <button class="tab" onclick="switchTab(this,'tab-skin')">Teint</button>
+                        <button class="tab" onclick="switchTab(this,'tab-hair')">Cheveux</button>
+                        <button class="tab" onclick="switchTab(this,'tab-armor')">Armure</button>
+                        <button class="tab" onclick="switchTab(this,'tab-access')">Accessoires</button>
+                        <button class="tab" onclick="switchTab(this,'tab-pose')">Pose</button>
+                    </div>
+
+                    <div class="forge-tab" id="tab-face">
+                        <h4>Visage</h4>
+                        <div class="option-grid" id="face-options"></div>
+                    </div>
+                    <div class="forge-tab" id="tab-skin" style="display:none">
+                        <h4>Teint de Peau</h4>
+                        <div class="option-grid color-grid" id="skin-options"></div>
+                    </div>
+                    <div class="forge-tab" id="tab-hair" style="display:none">
+                        <h4>Coupe & Couleur</h4>
+                        <div class="option-grid" id="hair-style-options"></div>
+                        <h4>Couleur</h4>
+                        <div class="option-grid color-grid" id="hair-color-options"></div>
+                    </div>
+                    <div class="forge-tab" id="tab-armor" style="display:none">
+                        <h4>Style d'Armure</h4>
+                        <div class="option-grid" id="armor-style-options"></div>
+                        <h4>Couleur</h4>
+                        <div class="option-grid color-grid" id="armor-color-options"></div>
+                        <h4>Casque</h4>
+                        <div class="option-grid" id="helmet-options"></div>
+                    </div>
+                    <div class="forge-tab" id="tab-access" style="display:none">
+                        <h4>Tatouages</h4>
+                        <div class="option-grid" id="tattoo-options"></div>
+                        <h4>Sac à dos</h4>
+                        <div class="option-grid" id="backpack-options"></div>
+                        <h4>Talismans</h4>
+                        <div class="option-grid" id="talisman-options"></div>
+                    </div>
+                    <div class="forge-tab" id="tab-pose" style="display:none">
+                        <h4>Pose de Victoire</h4>
+                        <div class="option-grid" id="pose-options"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="forge-buttons">
+                <button class="btn-action" onclick="saveAvatar()">💾 SAUVEGARDER</button>
+                <button class="btn-action secondary" onclick="showScreen('select-screen')">✅ UTILISER</button>
+                <button class="btn-back" onclick="showScreen('menu-screen')">← Retour</button>
+            </div>
+        </div>
+
+        <!-- COMMENT JOUER -->
+        <div id="howto-screen" class="screen">
+            <h2>📖 COMMENT JOUER</h2>
+            <div class="howto-content">
+                <div class="howto-section">
+                    <h3>🎮 Contrôles (Solo / P1)</h3>
+                    <div class="control-grid">
+                        <div class="key-item"><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> Déplacer</div>
+                        <div class="key-item"><kbd>ESPACE</kbd> Sauter</div>
+                        <div class="key-item"><kbd>F</kbd> Attaque</div>
+                        <div class="key-item"><kbd>G</kbd> Spécial</div>
+                        <div class="key-item"><kbd>E</kbd> Bloquer</div>
+                    </div>
+                </div>
+                <div class="howto-section">
+                    <h3>🎮 Contrôles (Coop P2)</h3>
+                    <div class="control-grid">
+                        <div class="key-item"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> Déplacer</div>
+                        <div class="key-item"><kbd>/</kbd> Sauter</div>
+                        <div class="key-item"><kbd>.</kbd> Attaque</div>
+                        <div class="key-item"><kbd>,</kbd> Spécial</div>
+                        <div class="key-item"><kbd>▼</kbd> Bloquer</div>
+                    </div>
+                </div>
+                <div class="howto-section">
+                    <h3>🦂 Scorpions</h3>
+                    <p>Les scorpions attaquent en meute. Esquive leurs pinces et leur dard empoisonné!</p>
+                    <p><strong>🟡 Petit</strong> — Rapide mais fragile<br>
+                    <strong>🟠 Moyen</strong> — Équilibré, pinces tranchantes<br>
+                    <strong>🔴 Géant</strong> — Boss, carapace blindée, charge dévastatrice</p>
+                </div>
+            </div>
+            <button class="btn-back" onclick="showScreen('menu-screen')">← Retour</button>
+        </div>
+
+        <!-- HUD EN JEU -->
+        <div id="hud" style="display:none">
+            <div class="hud-top">
+                <div class="hud-player" id="hud-p1">
+                    <canvas id="hud-avatar-1" width="50" height="50"></canvas>
+                    <div class="hud-info">
+                        <div class="hud-name" id="hud-name-1">RANGER</div>
+                        <div class="hp-bar-bg"><div class="hp-bar" id="hud-hp-1"></div></div>
+                        <div class="energy-bar-bg"><div class="energy-bar" id="hud-energy-1"></div></div>
+                    </div>
+                </div>
+                <div class="hud-center">
+                    <div id="wave-display">VAGUE 1</div>
+                    <div id="score-display">SCORE: 0</div>
+                </div>
+                <div class="hud-player" id="hud-p2" style="display:none">
+                    <div class="hud-info" style="text-align:right">
+                        <div class="hud-name" id="hud-name-2">TITAN</div>
+                        <div class="hp-bar-bg"><div class="hp-bar" id="hud-hp-2"></div></div>
+                        <div class="energy-bar-bg"><div class="energy-bar" id="hud-energy-2"></div></div>
+                    </div>
+                    <canvas id="hud-avatar-2" width="50" height="50"></canvas>
+                </div>
+            </div>
+            <div class="hud-bottom">
+                <div class="inventory-bar" id="inv-bar"></div>
+                <div id="poison-indicator" style="display:none">☠️ EMPOISONNÉ</div>
+            </div>
+            <div id="pause-overlay" style="display:none">
+                <div class="pause-box">
+                    <h2>PAUSE</h2>
+                    <button class="btn-main" onclick="resumeGame()">▶ Reprendre</button>
+                    <button class="btn-main" onclick="quitToMenu()">🏠 Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ÉCRAN DE MORT -->
+        <div id="death-screen" class="screen" style="display:none">
+            <div class="death-content">
+                <div class="death-icon">💀</div>
+                <h2>ÉLIMINÉ!</h2>
+                <div class="death-stats">
+                    <div>Score: <span id="death-score">0</span></div>
+                    <div>Vague: <span id="death-wave">1</span></div>
+                    <div>Scorpions: <span id="death-kills">0</span></div>
+                </div>
+                <div class="death-buttons">
+                    <button class="btn-main" onclick="restartGame()">🔄 Recommencer</button>
+                    <button class="btn-main" onclick="quitToMenu()">🏠 Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VICTORY -->
+        <div id="victory-screen" class="screen" style="display:none">
+            <div class="victory-content">
+                <div class="victory-icon">🏆</div>
+                <h2>VICTOIRE!</h2>
+                <div class="victory-text" id="victory-text">Toutes les vagues sont vaincues!</div>
+                <button class="btn-main" onclick="quitToMenu()">🏠 Menu</button>
+            </div>
+        </div>
+
+        <!-- GAME CANVAS -->
+        <canvas id="game-canvas"></canvas>
+    </div>
+
+    <script src="../../shared/juice.js"></script>
+    <script src="game.js"></script>
+    <script src="../../shared/music.js"></script>
+</body>
+</html>

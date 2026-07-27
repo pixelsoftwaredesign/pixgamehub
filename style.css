@@ -1,0 +1,211 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: #0a0015;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    overflow: hidden;
+}
+
+#game-wrapper { position: relative; width: 960px; }
+
+#gameCanvas {
+    display: block;
+    width: 960px;
+    height: 540px;
+    border: 3px solid #2a1a4a;
+    border-radius: 6px;
+    background: #0a0a2e;
+    cursor: crosshair;
+}
+
+/* HUD */
+#hud {
+    position: absolute;
+    top: -48px;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 10px;
+    background: linear-gradient(180deg, rgba(20,10,40,0.95), rgba(10,5,20,0.9));
+    border: 2px solid #4a2a7a;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+}
+
+#hud-p1, #hud-p2 { flex: 1; }
+#hud-p2 { text-align: right; }
+
+.player-name { font-size: 13px; font-weight: bold; letter-spacing: 3px; margin-bottom: 2px; }
+.p1-name { color: #ff8800; text-shadow: 0 0 10px rgba(255,136,0,0.5); }
+.p2-name { color: #44cc44; text-shadow: 0 0 10px rgba(68,204,68,0.5); }
+
+.health-bar-outer {
+    width: 100%; height: 14px;
+    background: #1a0a2a; border: 2px solid #555;
+    border-radius: 3px; overflow: hidden; margin-bottom: 2px;
+}
+#hud-p2 .health-bar-outer { direction: rtl; }
+
+.health-bar-inner {
+    width: 100%; height: 100%;
+    background: linear-gradient(180deg, #44ff44, #22aa22);
+    transition: width 0.2s;
+}
+.health-bar-inner.low { background: linear-gradient(180deg, #ffff44, #aaaa22); }
+.health-bar-inner.critical { background: linear-gradient(180deg, #ff4444, #aa2222); }
+
+.energy-bar-outer {
+    width: 100%; height: 6px;
+    background: #0a0a1a; border: 1px solid #444;
+    border-radius: 2px; overflow: hidden;
+}
+
+.energy-bar-inner {
+    width: 0%; height: 100%;
+    background: linear-gradient(180deg, #ffaa00, #ff6600);
+    transition: width 0.2s;
+}
+.energy-bar-inner.ready {
+    background: linear-gradient(180deg, #ffff00, #ffaa00);
+    animation: energyPulse 0.5s infinite;
+}
+
+@keyframes energyPulse { 0%,100%{opacity:1}50%{opacity:0.6} }
+
+#hud-center { text-align: center; min-width: 80px; padding: 0 10px; }
+
+#timer-display {
+    color: #ffd700; font-size: 30px; font-weight: bold;
+    font-family: 'Courier New', monospace;
+    text-shadow: 0 0 10px rgba(255,215,0,0.5);
+}
+#round-display { color: #8866aa; font-size: 10px; letter-spacing: 2px; }
+.wins-display { color: #ffd700; font-size: 10px; margin-top: 1px; }
+
+/* OVERLAYS */
+#menu-screen, #lobby-screen, #map-reveal, #pause-screen,
+#gameover-screen, #round-announce, #ko-screen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 960px; height: 540px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+    border-radius: 6px;
+}
+
+#menu-screen { background: rgba(10,0,30,0.95); }
+#pause-screen { background: rgba(10,0,30,0.92); }
+#gameover-screen { background: rgba(10,0,30,0.93); }
+
+h1 {
+    font-size: 48px;
+    color: #ff8800;
+    text-shadow: 0 0 30px rgba(255,136,0,0.5);
+    margin-bottom: 4px;
+}
+
+.vs-text { color: #ff4444; font-size: 36px; text-shadow: 0 0 20px rgba(255,68,68,0.6); margin: 0 10px; }
+.subtitle { font-size: 18px; color: #8866aa; margin-bottom: 24px; font-style: italic; }
+
+.controls-section { display: flex; gap: 30px; margin-bottom: 24px; }
+
+.control-box {
+    background: rgba(255,255,255,0.03); border: 1px solid #333;
+    border-radius: 8px; padding: 14px 22px; text-align: center; min-width: 180px;
+}
+.naruto-box { border-color: #ff8800; }
+.naruto-box h3 { color: #ff8800; }
+.zoro-box { border-color: #44cc44; }
+.zoro-box h3 { color: #44cc44; }
+.control-box h3 { font-size: 13px; margin-bottom: 6px; letter-spacing: 2px; }
+.control-box p { color: #aaa; font-size: 12px; margin: 2px 0; font-family: monospace; }
+
+/* LOBBY */
+#lobby-screen {
+    background: rgba(10,0,30,0.4);
+    justify-content: flex-start;
+    pointer-events: none;
+}
+
+#lobby-top {
+    background: rgba(0,0,0,0.8);
+    padding: 10px 30px;
+    border-radius: 0 0 10px 10px;
+    display: flex;
+    gap: 30px;
+    align-items: center;
+    border: 2px solid #4a2a7a;
+    border-top: none;
+    z-index: 21;
+}
+
+#lobby-title { color: #ffd700; font-size: 16px; font-weight: bold; letter-spacing: 2px; }
+#lobby-timer { color: #ff8844; font-size: 18px; font-weight: bold; font-family: monospace; }
+
+#lobby-info {
+    position: absolute;
+    bottom: 20px;
+    background: rgba(0,0,0,0.7);
+    padding: 10px 24px;
+    border-radius: 8px;
+    text-align: center;
+    z-index: 21;
+}
+#lobby-info p { color: #aaa; font-size: 13px; margin: 3px 0; }
+.lobby-tip { color: #ff8844 !important; font-size: 12px !important; }
+
+/* MAP REVEAL */
+#map-reveal {
+    background: rgba(0,0,0,0.85);
+    animation: mapRevealIn 0.5s ease-out;
+}
+
+#map-reveal h1 { font-size: 56px; }
+#map-reveal p { color: #aaa; font-size: 16px; margin-top: 10px; }
+
+#map-reveal-preview {
+    width: 200px; height: 120px;
+    margin-top: 20px;
+    border: 2px solid #4a2a7a;
+    border-radius: 8px;
+    background: #1a1a3a;
+}
+
+@keyframes mapRevealIn {
+    0% { opacity: 0; transform: scale(1.5); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* ROUND / KO */
+#round-announce, #ko-screen {
+    z-index: 15; pointer-events: none;
+}
+#round-announce h1 { font-size: 80px; animation: pulseIn 0.5s ease-out; }
+#announce-sub { font-size: 44px; color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.5); margin-top: 10px; }
+#ko-text { color: #ff0000; text-shadow: 0 0 40px rgba(255,0,0,0.8); font-size: 80px; }
+#ko-winner { color: #fff; font-size: 22px; margin-top: 16px; }
+
+#gameover-screen h1 { font-size: 52px; }
+#winner-name { color: #ffd700; font-size: 24px; margin: 10px 0 24px; }
+
+button {
+    padding: 12px 40px; font-size: 16px; font-weight: bold;
+    color: #fff; background: linear-gradient(135deg, #ff6600, #cc3300);
+    border: 2px solid #ff8844; border-radius: 6px; cursor: pointer;
+    margin: 5px; transition: all 0.2s;
+    text-transform: uppercase; letter-spacing: 2px;
+}
+button:hover {
+    background: linear-gradient(135deg, #ff8844, #ee4400);
+    transform: scale(1.05); box-shadow: 0 0 20px rgba(255,102,0,0.4);
+}
+
+@keyframes pulseIn { 0%{transform:scale(3);opacity:0}100%{transform:scale(1);opacity:1} }

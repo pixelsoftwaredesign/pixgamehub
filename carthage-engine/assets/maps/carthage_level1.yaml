@@ -1,0 +1,60 @@
+level:
+  name: "Carthage - Les Remparts du Cothon"
+  width: 3200
+  height: 900
+  background:
+    sky_color: [0.18, 0.09, 0.12, 1.0]
+
+platforms:
+  - id: "sol_principal"
+    x: 0
+    y: 800
+    width: 3200
+    height: 100
+    type: "ground"
+
+  - id: "rempart_punique_1"
+    x: 400
+    y: 650
+    width: 350
+    height: 30
+    type: "platform"
+
+  - id: "arche_phenicienne_1"
+    x: 950
+    y: 500
+    width: 280
+    height: 30
+    type: "platform"
+
+  - id: "plateforme_haute_cothon"
+    x: 1450
+    y: 380
+    width: 400
+    height: 30
+    type: "platform"
+
+  - id: "rempart_est_1"
+    x: 2000
+    y: 600
+    width: 300
+    height: 30
+    type: "platform"
+
+  - id: "tour_garde_1"
+    x: 2500
+    y: 450
+    width: 200
+    height: 30
+    type: "platform"
+
+grapple_points:
+  - id: "ancrage_arche_1"
+    x: 1090
+    y: 400
+  - id: "ancrage_rempart_haut"
+    x: 1650
+    y: 280
+  - id: "ancrage_tour_1"
+    x: 2600
+    y: 350

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Voleur de Bagdad - Les Sables Scintillants</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="menu-screen">
+        <div id="menu-content">
+            <h1>Le Voleur de Bagdad</h1>
+            <p class="subtitle">Les Sables Scintillants</p>
+            <div class="menu-art">
+                <canvas id="menu-canvas" width="600" height="300"></canvas>
+            </div>
+            <div class="controls-info">
+                <div class="control"><kbd>Q</kbd><kbd>D</kbd> ou <kbd>←</kbd><kbd>→</kbd> Courir</div>
+                <div class="control"><kbd>ESPACE</kbd> ou <kbd>↑</kbd> Sauter</div>
+                <div class="control"><kbd>↓</kbd> Glisser</div>
+                <div class="control"><kbd>S</kbd> ou <kbd>SHIFT</kbd> Jet de sable</div>
+            </div>
+            <button id="play-btn" onclick="startGame()">JOUER</button>
+        </div>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+
+    <div id="hud" style="display:none;">
+        <div id="hud-left">
+            <div class="hud-bar">
+                <span class="hud-label">VIE</span>
+                <div class="bar-bg"><div id="hp-bar" class="bar-fill hp"></div></div>
+            </div>
+            <div class="hud-bar">
+                <span class="hud-label">STÉMINITÉ</span>
+                <div class="bar-bg"><div id="stamina-bar" class="bar-fill stamina"></div></div>
+            </div>
+        </div>
+        <div id="hud-center">
+            <div id="score-display">0</div>
+            <div class="score-label">DINARS</div>
+        </div>
+        <div id="hud-right">
+            <div id="gem-count">0 / 5</div>
+            <div class="score-label">ARTÉFACTS</div>
+        </div>
+    </div>
+
+    <div id="gameover-screen" style="display:none;">
+        <h2 id="gameover-title">ATTRAPÉ !</h2>
+        <p id="gameover-text">Les gardes vous ont capturé...</p>
+        <div id="gameover-score"></div>
+        <button onclick="restartGame()">RÉESSAYER</button>
+    </div>
+
+    <script src="js/Player.js"></script>
+    <script src="js/Level.js"></script>
+    <script src="js/Guard.js"></script>
+    <script src="js/game.js"></script>
+    <script src="../../shared/music.js"></script>
+</body>
+</html>

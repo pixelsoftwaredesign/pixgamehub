@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manga Fighting Arena</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <a href="../../index.html" id="back-btn">← Retour Hub</a>
+
+        <!-- TITRE -->
+        <div id="title-screen" class="screen active">
+            <div class="manga-title">
+                <div class="title-jp">格闘アリーナ</div>
+                <h1>MANGA<br><span>FIGHTING ARENA</span></h1>
+                <div class="title-sub">~ Le Combat Ultime ~</div>
+            </div>
+            <div class="title-flash"></div>
+            <button class="btn-manga" onclick="showScreen('mode-screen')">▶ START</button>
+        </div>
+
+        <!-- MODE -->
+        <div id="mode-screen" class="screen">
+            <h2 class="section-title"> MODE DE JEU</h2>
+            <div class="mode-row">
+                <div class="mode-card" onclick="selectMode('versus')">
+                    <div class="mode-kanji">対戦</div>
+                    <h3>VERSUS</h3>
+                    <p>1 vs 1 Local</p>
+                </div>
+                <div class="mode-card" onclick="selectMode('coop')">
+                    <div class="mode-kanji">協力</div>
+                    <h3>COOP</h3>
+                    <p>2 Joueurs vs IA</p>
+                </div>
+                <div class="mode-card" onclick="selectMode('tag')">
+                    <div class="mode-kanji">タッグ</div>
+                    <h3>TAG TEAM</h3>
+                    <p>2v2 avec switches</p>
+                </div>
+            </div>
+            <button class="btn-back" onclick="showScreen('title-screen')">← Retour</button>
+        </div>
+
+        <!-- SÉLECTION -->
+        <div id="select-screen" class="screen">
+            <h2 class="section-title">CHOisis TON COMBATTANT</h2>
+            <div class="select-layout">
+                <div class="player-select" id="p1-select">
+                    <div class="select-label p1-color">JOUEUR 1</div>
+                    <div class="char-grid" id="p1-grid"></div>
+                </div>
+                <div class="vs-splash">VS</div>
+                <div class="player-select" id="p2-select">
+                    <div class="select-label p2-color">JOUEUR 2</div>
+                    <div class="char-grid" id="p2-grid"></div>
+                </div>
+            </div>
+            <div class="char-preview-row">
+                <div class="char-preview-box" id="preview-p1">
+                    <canvas id="preview-canvas-1" width="180" height="260"></canvas>
+                    <div class="preview-name" id="preview-name-1">---</div>
+                    <div class="preview-title" id="preview-title-1"></div>
+                </div>
+                <div class="char-preview-box" id="preview-p2">
+                    <canvas id="preview-canvas-2" width="180" height="260"></canvas>
+                    <div class="preview-name" id="preview-name-2">---</div>
+                    <div class="preview-title" id="preview-title-2"></div>
+                </div>
+            </div>
+            <div class="select-actions">
+                <button class="btn-manga" onclick="launchFight()">⚔️ COMBATTRE!</button>
+                <button class="btn-back" onclick="showScreen('mode-screen')">← Retour</button>
+            </div>
+        </div>
+
+        <!-- HUD -->
+        <div id="hud" style="display:none">
+            <div class="hud-top">
+                <div class="hud-player hud-p1">
+                    <div class="hud-name p1-color" id="hud-name-1">---</div>
+                    <div class="hp-bar-outer"><div class="hp-bar-inner hp-p1" id="hp-1"></div><div class="hp-bar-dmg hp-dmg-1" id="hp-dmg-1"></div></div>
+                    <div class="sp-bar-outer"><div class="sp-bar-inner" id="sp-1"></div></div>
+                </div>
+                <div class="hud-center">
+                    <div class="timer" id="timer">99</div>
+                    <div class="round-display" id="round-display">ROUND 1</div>
+                    <div class="combo-display" id="combo-p1"></div>
+                </div>
+                <div class="hud-player hud-p2">
+                    <div class="hud-name p2-color" id="hud-name-2">---</div>
+                    <div class="hp-bar-outer"><div class="hp-bar-inner hp-p2" id="hp-2"></div><div class="hp-bar-dmg hp-dmg-2" id="hp-dmg-2"></div></div>
+                    <div class="sp-bar-outer"><div class="sp-bar-inner" id="sp-2"></div></div>
+                </div>
+            </div>
+            <div id="round-announce" style="display:none">
+                <div class="announce-text" id="announce-text">ROUND 1</div>
+            </div>
+            <div id="pause-overlay" style="display:none">
+                <div class="pause-box">
+                    <div class="pause-kanji">一時停止</div>
+                    <h2>PAUSE</h2>
+                    <button class="btn-manga" onclick="resumeGame()">▶ Reprendre</button>
+                    <button class="btn-manga secondary" onclick="quitToMenu()">🏠 Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RÉSULTAT -->
+        <div id="result-screen" class="screen" style="display:none">
+            <div class="result-flash"></div>
+            <div class="result-content">
+                <div class="winner-announce" id="winner-text">WINNER!</div>
+                <canvas id="winner-canvas" width="300" height="200"></canvas>
+                <div class="winner-name" id="winner-name">---</div>
+                <div class="result-buttons">
+                    <button class="btn-manga" onclick="rematch()">⚔️ Revanche</button>
+                    <button class="btn-manga secondary" onclick="quitToMenu()">🏠 Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GAME CANVAS -->
+        <canvas id="game-canvas"></canvas>
+    </div>
+
+    <script src="../../shared/juice.js"></script>
+    <script src="game.js"></script>
+    <script src="../../shared/music.js"></script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Empire de Carthage</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="intro-screen">
+        <canvas id="intro-canvas"></canvas>
+        <div id="intro-overlay">
+            <div id="carthage-title">
+                <div class="title-glyphs" id="title-glyphs"></div>
+                <h1>EMPIRE DE CARTHAGE</h1>
+                <p class="subtitle">La Perle de la Méditerranée</p>
+                <div class="title-glyphs" id="title-glyphs-bottom"></div>
+            </div>
+            <div id="menu-buttons">
+                <button class="menu-btn" onclick="startGame('campaign')">⚔️ CAMPAGNE</button>
+                <button class="menu-btn" onclick="startGame('sandbox')">🏛️ MODE LIBRE</button>
+                <button class="menu-btn" onclick="startGame('battle')">🔥 BATAILLE</button>
+            </div>
+            <div class="controls-hint">
+                <span>🖱️ Clique pour interagir</span>
+                <span>⌨️ ESC Menu</span>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="game-canvas" style="display:none;"></canvas>
+
+    <div id="hud" style="display:none;">
+        <div id="hud-top">
+            <div id="empire-name">CARTHAGE</div>
+            <div id="resources">
+                <span class="res">🪙 <span id="gold">500</span></span>
+                <span class="res">🪨 <span id="stone">300</span></span>
+                <span class="res">👥 <span id="pop">50</span></span>
+                <span class="res">⚔️ <span id="army">20</span></span>
+            </div>
+        </div>
+        <div id="hud-bottom">
+            <div id="action-panel">
+                <button class="action-btn" onclick="gameAction('build')">🏗️ Construire</button>
+                <button class="action-btn" onclick="gameAction('recruit')">⚔️ Recruter</button>
+                <button class="action-btn" onclick="gameAction('trade')">💰 Commerce</button>
+                <button class="action-btn" onclick="gameAction('expand')">🗺️ Étendre</button>
+            </div>
+            <div id="info-panel">
+                <span id="info-text">Bienvenue à Carthage, cité de Hamilcar</span>
+            </div>
+        </div>
+        <div id="minimap"><canvas id="minimap-canvas" width="160" height="160"></canvas></div>
+        <div id="turn-display">Tour <span id="turn-num">1</span></div>
+        <div id="event-log"></div>
+    </div>
+
+    <div id="event-modal" style="display:none;">
+        <div class="modal-content">
+            <h2 id="modal-title"></h2>
+            <p id="modal-text"></p>
+            <div id="modal-choices"></div>
+        </div>
+    </div>
+
+    <div id="gameover-screen" style="display:none;">
+        <canvas id="go-canvas"></canvas>
+        <div class="go-content">
+            <h2 id="go-title"></h2>
+            <p id="go-text"></p>
+            <div id="go-stats"></div>
+            <button onclick="location.reload()">REJOUER</button>
+        </div>
+    </div>
+
+    <script src="js/Alphabet.js"></script>
+    <script src="js/Character.js"></script>
+    <script src="js/Carthage.js"></script>
+    <script src="js/game.js"></script>
+    <script src="../../shared/music.js"></script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Naruto vs Zoro - Anime Battle</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="game-container">
+  <canvas id="gameCanvas" width="1200" height="600"></canvas>
+
+  <div id="hud" style="display:none;">
+    <div id="hud-top">
+      <div id="p1-info" class="player-hud">
+        <div id="p1-name" class="player-name p1-name">NARUTO</div>
+        <div class="bar-container">
+          <div id="p1-health" class="bar health-bar"><div id="p1-health-fill" class="bar-fill health-fill"></div></div>
+          <div id="p1-health-text" class="bar-text">1000</div>
+        </div>
+        <div class="bar-container">
+          <div id="p1-energy" class="bar energy-bar"><div id="p1-energy-fill" class="bar-fill energy-fill-p1"></div></div>
+        </div>
+      </div>
+      <div id="center-hud">
+        <div id="timer-display">99</div>
+        <div id="round-display">ROUND 1</div>
+        <div id="wins-display">
+          <span id="p1-wins" class="win-stars"></span>
+          <span class="vs-text">VS</span>
+          <span id="p2-wins" class="win-stars"></span>
+        </div>
+      </div>
+      <div id="p2-info" class="player-hud">
+        <div id="p2-name" class="player-name p2-name">ZORO</div>
+        <div class="bar-container">
+          <div id="p2-health" class="bar health-bar"><div id="p2-health-fill" class="bar-fill health-fill"></div></div>
+          <div id="p2-health-text" class="bar-text">1000</div>
+        </div>
+        <div class="bar-container">
+          <div id="p2-energy" class="bar energy-bar"><div id="p2-energy-fill" class="bar-fill energy-fill-p2"></div></div>
+        </div>
+      </div>
+    </div>
+    <div id="combo-p1" class="combo-display combo-left"></div>
+    <div id="combo-p2" class="combo-display combo-right"></div>
+  </div>
+
+  <div id="announce" style="display:none;"></div>
+
+  <div id="menu-screen">
+    <div id="menu-bg-effects"></div>
+    <h1 id="menu-title">NARUTO <span class="vs">VS</span> ZORO</h1>
+    <h2 id="menu-subtitle">ANIME BATTLE</h2>
+    <div id="menu-controls-info">
+      <div class="control-col">
+        <h3 class="p1-name">NARUTO (P1)</h3>
+        <p>WASD - Move/Jump</p>
+        <p>S - Block</p>
+        <p>F - Punch</p>
+        <p>G - Rasengan</p>
+        <p>H - Uzumaki Barrage</p>
+        <p>SHIFT - Dash</p>
+      </div>
+      <div class="control-col">
+        <h3 class="p2-name">ZORO (P2)</h3>
+        <p>Arrow Keys - Move/Jump</p>
+        <p>Down - Block</p>
+        <p>J - Sabre Slash</p>
+        <p>K - Santoryu</p>
+        <p>L - Onigiri</p>
+        <p>RCTRL - Dash</p>
+      </div>
+    </div>
+    <button id="start-btn" onclick="startGame()">START BATTLE</button>
+    <p id="menu-hint">Press ENTER to start</p>
+  </div>
+
+  <div id="lobby-overlay" style="display:none;">
+    <div id="lobby-timer-box">
+      <div id="lobby-timer-label">BATTLE STARTS IN</div>
+      <div id="lobby-timer">15</div>
+    </div>
+    <div id="lobby-hint">A/D to walk around</div>
+  </div>
+
+  <a href="../.." id="back-btn">&#9664; BACK</a>
+</div>
+
+<script src="game.js"></script>
+    <script src="../../shared/music.js"></script>
+</body>
+</html>

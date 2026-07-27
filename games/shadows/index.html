@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadows in the City</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="menu-screen">
+        <h1>SHADOWS IN THE CITY</h1>
+        <p class="tagline">Qui est l'assassin parmi nous ?</p>
+        <canvas id="menu-canvas" width="600" height="280"></canvas>
+        <div class="role-select">
+            <h3>Choisis ton rôle :</h3>
+            <div class="roles">
+                <button class="role-btn assassin" onclick="selectRole('assassin')">
+                    <span class="role-icon">🗡️</span>
+                    <span class="role-name">ASSASSIN</span>
+                    <span class="role-desc">Élimine les cibles sans te faire voir</span>
+                </button>
+                <button class="role-btn police" onclick="selectRole('police')">
+                    <span class="role-icon">🔫</span>
+                    <span class="role-name">POLICE</span>
+                    <span class="role-desc">Protège les citoyens, arrête les suspects</span>
+                </button>
+                <button class="role-btn citizen" onclick="selectRole('citizen')">
+                    <span class="role-icon">🚶</span>
+                    <span class="role-name">CITOYEN</span>
+                    <span class="role-desc">Survie, rassemble des preuves</span>
+                </button>
+            </div>
+        </div>
+        <div class="controls-info">
+            <div class="ctrl"><kbd>ZQSD</kbd> ou <kbd>↑←↓→</kbd> Déplacer</div>
+            <div class="ctrl"><kbd>E</kbd> Action (tuer/arrester/preuve)</div>
+            <div class="ctrl"><kbd>R</kbd> Arme secondaire (grenade/pistolet)</div>
+            <div class="ctrl"><kbd>SHIFT</kbd> Courir</div>
+        </div>
+        <button id="play-btn" onclick="startGame()">LANCER</button>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+
+    <div id="hud" style="display:none;">
+        <div id="hud-top">
+            <div id="role-display"></div>
+            <div id="score-display">0</div>
+        </div>
+        <div id="hud-bottom">
+            <div id="hp-container">
+                <span class="hud-label">VIE</span>
+                <div class="bar-bg"><div id="hp-bar" class="bar-fill hp"></div></div>
+            </div>
+            <div id="weapon-display">
+                <span id="weapon-name">COUTEAU</span>
+                <span id="ammo-count"></span>
+            </div>
+            <div id="objective-display"></div>
+        </div>
+        <div id="minimap"><canvas id="minimap-canvas" width="150" height="150"></canvas></div>
+        <div id="kill-feed"></div>
+        <div id="alert-banner" style="display:none;"></div>
+    </div>
+
+    <div id="gameover-screen" style="display:none;">
+        <h2 id="go-title"></h2>
+        <p id="go-text"></p>
+        <div id="go-stats"></div>
+        <button onclick="restartGame()">REJOUER</button>
+    </div>
+
+    <script src="js/City.js"></script>
+    <script src="js/Player.js"></script>
+    <script src="js/AI.js"></script>
+    <script src="js/game.js"></script>
+    <script src="../../shared/music.js"></script>
+</body>
+</html>

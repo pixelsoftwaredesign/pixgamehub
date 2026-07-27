@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fort2D - Battle Royale</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <a href="../.." class="back-btn">← Hub</a>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="start-screen">
+        <div class="start-content">
+            <h1>FORT<span class="accent">2D</span></h1>
+            <p class="subtitle">BATTLE ROYALE</p>
+            <p class="players-text">50 Players • 1 Winner</p>
+            <button id="playBtn">DROP FROM BUS</button>
+            <div class="controls-info">
+                <div class="control-row"><kbd>WASD</kbd> Move</div>
+                <div class="control-row"><kbd>SHIFT</kbd> Sprint</div>
+                <div class="control-row"><kbd>CLICK</kbd> Shoot / Build</div>
+                <div class="control-row"><kbd>1-5</kbd> Weapons</div>
+                <div class="control-row"><kbd>QEF</kbd> Wall / Ramp / Floor</div>
+                <div class="control-row"><kbd>G</kbd> Destroy &nbsp; <kbd>R</kbd> Reload</div>
+                <div class="control-row"><kbd>X</kbd> Pickaxe &nbsp; <kbd>ESC</kbd> Pause</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="bus-screen" class="hidden">
+        <div class="bus-content">
+            <h2>BATTLE BUS</h2>
+            <p>Click anywhere to drop!</p>
+            <div id="bus-count"></div>
+        </div>
+    </div>
+
+    <div id="pause-menu" class="hidden">
+        <div class="menu-content">
+            <h2>PAUSED</h2>
+            <button id="resumeBtn">Resume</button>
+            <button id="quitBtn">Quit to Hub</button>
+        </div>
+    </div>
+
+    <div id="victory-screen" class="hidden">
+        <div class="victory-content">
+            <h1>VICTORY ROYALE</h1>
+            <p class="victory-sub">🏆 #1 / 50 Players 🏆</p>
+            <div id="victory-stats"></div>
+            <button id="victoryBackBtn">Back to Hub</button>
+        </div>
+    </div>
+
+    <div id="defeat-screen" class="hidden">
+        <div class="defeat-content">
+            <h2>ELIMINATED</h2>
+            <p id="defeat-placement"></p>
+            <div id="defeat-stats"></div>
+            <button id="defeatBackBtn">Back to Hub</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+    <script src="../../shared/music.js"></script>
+</body>
+</html>

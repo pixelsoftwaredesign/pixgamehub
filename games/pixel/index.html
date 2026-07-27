@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Pixel Arena - Multiplayer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <a href="../../index.html" id="back-btn">← Retour Hub</a>
+
+        <!-- MENU -->
+        <div id="menu-screen">
+            <div class="pixel-title">PIXEL ARENA</div>
+            <div class="pixel-sub">Multiplayer Combat</div>
+            <canvas id="title-preview" width="320" height="80"></canvas>
+            <div class="mode-select">
+                <button class="pixel-btn selected" data-mode="versus">⚔️ VERSUS</button>
+                <button class="pixel-btn" data-mode="coop">🛡️ COOP vs IA</button>
+                <button class="pixel-btn" data-mode="ffa">👑 FREE FOR ALL</button>
+            </div>
+            <div class="char-select">
+                <div class="player-select" id="p1-select">
+                    <div class="select-label">JOUEUR 1</div>
+                    <div class="char-grid" id="p1-chars"></div>
+                </div>
+                <div class="vs-text">VS</div>
+                <div class="player-select" id="p2-select">
+                    <div class="select-label">JOUEUR 2</div>
+                    <div class="char-grid" id="p2-chars"></div>
+                </div>
+            </div>
+            <div class="map-select">
+                <div class="select-label">MAP</div>
+                <div class="map-grid" id="map-grid"></div>
+            </div>
+            <button class="pixel-btn big" id="start-btn">▶ LANCER</button>
+        </div>
+
+        <!-- GAME -->
+        <canvas id="game-canvas" width="800" height="500"></canvas>
+
+        <!-- HUD -->
+        <div id="hud" style="display:none;">
+            <div class="hud-bar" id="hud-p1">
+                <div class="hud-name" id="hud-name-1">P1</div>
+                <div class="hp-bar-bg"><div class="hp-bar" id="hp-1"></div></div>
+                <div class="special-bar-bg"><div class="special-bar" id="sp-1"></div></div>
+            </div>
+            <div class="hud-center">
+                <div id="round-display">Manche 1</div>
+                <div id="timer-display">99</div>
+                <div id="score-display">0 - 0</div>
+            </div>
+            <div class="hud-bar" id="hud-p2">
+                <div class="hud-name" id="hud-name-2">P2</div>
+                <div class="hp-bar-bg"><div class="hp-bar" id="hp-2"></div></div>
+                <div class="special-bar-bg"><div class="special-bar" id="sp-2"></div></div>
+            </div>
+        </div>
+
+        <!-- PAUSE -->
+        <div id="pause-screen" style="display:none;">
+            <div class="pixel-title small">PAUSE</div>
+            <button class="pixel-btn" id="resume-btn">▶ Reprendre</button>
+            <button class="pixel-btn" id="quit-btn">🏠 Menu</button>
+        </div>
+
+        <!-- RESULT -->
+        <div id="result-screen" style="display:none;">
+            <div class="pixel-title" id="winner-text">JOUEUR 1 GAGNE!</div>
+            <canvas id="victory-dance" width="200" height="150"></canvas>
+            <div class="result-buttons">
+                <button class="pixel-btn" id="rematch-btn">⚔️ Revanche</button>
+                <button class="pixel-btn" id="menu-btn">🏠 Menu</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../shared/juice.js"></script>
+    <script src="js/characters.js"></script>
+    <script src="js/avatar.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="game.js"></script>
+    <script src="../../shared/music.js"></script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Voleur de Carthage : Sables Scintillants</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="ui-overlay">
+        <span>← → COURIR | ESPACE SAUTER | SHIFT ROULER | S ACCROUPER</span>
+    </div>
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+    <div id="title-screen">
+        <div class="parchment-bg"></div>
+        <div class="ornament">⸻ ✦ ⸻</div>
+        <h1>LE VOLEUR DE CARTHAGE</h1>
+        <p class="subtitle">Sables Scintillants</p>
+        <button class="start-btn" id="start-btn">COMMENCER</button>
+        <p class="controls-hint">← → COURIR · ESPACE SAUTER · SHIFT ROULER · S ACCROUPER · W WALL-RUN · G GRAPPIN</p>
+    </div>
+
+    <div id="select-screen">
+        <div class="parchment-bg"></div>
+        <h1>CHOISIS TON HÉROS</h1>
+        <p class="sub">Sélectionne ton personnage</p>
+        <div class="hero-cards">
+            <div class="hero-card" onclick="switchHero('zayd')" data-hero="zayd">
+                <div class="hero-icon">🦅</div>
+                <h3>Zayd</h3>
+                <p class="hero-role">Acrobate Agile</p>
+                <p class="hero-desc">Maître du grappin et de la course murale. Sa cape pourpre danse avec le vent.</p>
+                <div class="hero-stats">
+                    <div class="hero-stat">VIT<div class="hero-stat-bar"><div class="hero-stat-fill" style="width:80%"></div></div></div>
+                    <div class="hero-stat">AGI<div class="hero-stat-bar"><div class="hero-stat-fill" style="width:95%"></div></div></div>
+                    <div class="hero-stat">FOR<div class="hero-stat-bar"><div class="hero-stat-fill" style="width:45%"></div></div></div>
+                </div>
+            </div>
+            <div class="hero-card" onclick="switchHero('jenna')" data-hero="jenna">
+                <div class="hero-icon">🌙</div>
+                <h3>Jenna</h3>
+                <p class="hero-role">Ombre Furtive</p>
+                <p class="hero-desc">Invisible dans la nuit. Frappe avant même d'être vue.</p>
+                <div class="hero-stats">
+                    <div class="hero-stat">VIT<div class="hero-stat-bar"><div class="hero-stat-fill" style="width:90%"></div></div></div>
+                    <div class="hero-stat">AGI<div class="hero-stat-bar"><div class="hero-stat-fill" style="width:85%"></div></div></div>
+                    <div class="hero-stat">FOR<div class="hero-stat-bar"><div class="hero-stat-fill" style="width:35%"></div></div></div>
+                </div>
+            </div>
+            <div class="hero-card" onclick="switchHero('zed')" data-hero="zed">
+                <div class="hero-icon">💪</div>
+                <h3>Zed</h3>
+                <p class="hero-role">Force Brute</p>
+                <p class="hero-desc">Le mur que personne ne peut arrêter. Sa charge écrase les obstacles.</p>
+                <div class="hero-stats">
+                    <div class="hero-stat">VIT<div class="hero-stat-bar"><div class="hero-stat-fill" style="width:55%"></div></div></div>
+                    <div class="hero-stat">AGI<div class="hero-stat-bar"><div class="hero-stat-fill" style="width:40%"></div></div></div>
+                    <div class="hero-stat">FOR<div class="hero-stat-bar"><div class="hero-stat-fill" style="width:95%"></div></div></div>
+                </div>
+            </div>
+        </div>
+        <p class="hint">Clique sur un héros pour commencer</p>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+    <script>
+        let selectedHero = 'zayd';
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('title-screen').style.display = 'none';
+            document.getElementById('select-screen').style.display = 'flex';
+        });
+
+        window.switchHero = function(hero) {
+            selectedHero = hero;
+            document.getElementById('select-screen').style.display = 'none';
+            document.getElementById('ui-overlay').style.display = 'block';
+
+            window.dispatchEvent(new CustomEvent('heroSelected', { detail: hero }));
+        };
+
+        document.querySelectorAll('.hero-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                document.querySelectorAll('.hero-card').forEach(c => c.style.opacity = '0.5');
+                card.style.opacity = '1';
+            });
+            card.addEventListener('mouseleave', () => {
+                document.querySelectorAll('.hero-card').forEach(c => c.style.opacity = '1');
+            });
+        });
+    </script>
+</body>
+</html>
