@@ -382,11 +382,12 @@ function updateRoomBadges(roomsList) {
 
 // ─── Global Init ────────────────────────────────────────────────────────────
 function init() {
-    if (!_token || !_username) {
-        showAuthUI(() => connectWS(null));
-    } else {
-        connectWS(null);
-    }
+    connectWS(() => {
+        if (!_token || !_username) {
+            showAuthUI(() => {});
+        }
+    });
+
     setInterval(() => {
         if (_ws && _ws.readyState === WebSocket.OPEN) {
             _ws.send(JSON.stringify({ action: 'get_rooms' }));
