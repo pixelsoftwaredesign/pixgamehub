@@ -656,6 +656,9 @@ async def _handle_carthage_action(websocket, ws_id: str, msg: dict):
     elif cmd == "fortify":
         result = cwg.fortify(ws_id, msg.get("tid"))
 
+    elif cmd == "construct":
+        result = cwg.construct(ws_id, msg.get("tid"), msg.get("building"))
+
     elif cmd == "recruit":
         result = cwg.recruit(ws_id, msg.get("tid"), msg.get("amount", 5))
 
@@ -689,7 +692,7 @@ async def _handle_carthage_action(websocket, ws_id: str, msg: dict):
         if not cwg.winner:
             _add_carthage_log(cwg, "Systeme", f"Bataille a {battle['territory']} !")
 
-    if cmd in ("move_army", "fortify", "recruit", "ready", "unready", "propose_alliance",
+    if cmd in ("move_army", "fortify", "construct", "recruit", "ready", "unready", "propose_alliance",
                "accept_alliance", "reject_alliance", "break_alliance", "chat"):
         pass
 

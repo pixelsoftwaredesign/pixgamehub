@@ -37,6 +37,19 @@ ADJACENCY = {t["id"]: t["adj"] for t in TERRITORIES}
 FORT_BONUS = {"city": 0, "port": 1, "fort": 2, "temple": 0}
 TERRAIN_BONUS = {"city": 1.0, "port": 0.8, "fort": 1.3, "temple": 0.6}
 
+# ─── Building Definitions ──────────────────────────────────────────────────────
+BUILDINGS = {
+    "temple":  {"name":"Temple",         "icon":"☥", "cost":30, "gold":0,  "moral":5,  "defense":0.5, "fort":0},
+    "walls":   {"name":"Remparts",       "icon":"🏰","cost":40, "gold":0,  "moral":0,  "defense":0,   "fort":2},
+    "wheat":   {"name":"Champs de ble",  "icon":"🌾","cost":15, "gold":3,  "moral":0,  "defense":0,   "fort":0},
+    "olive":   {"name":"Oliviers",       "icon":"🫒","cost":20, "gold":2,  "moral":1,  "defense":0,   "fort":0},
+    "resin":   {"name":"Atelier resine", "icon":"🌲","cost":25, "gold":4,  "moral":0,  "defense":0,   "fort":0},
+    "vineyard":{"name":"Vignobles",      "icon":"🍇","cost":20, "gold":2,  "moral":2,  "defense":0,   "fort":0},
+    "market":  {"name":"Marche",         "icon":"🏪","cost":35, "gold":5,  "moral":1,  "defense":0,   "fort":0},
+    "dock":    {"name":"Quai",           "icon":"⚓","cost":25, "gold":3,  "moral":0,  "defense":0,   "fort":0},
+}
+BUILDING_ORDER = ["wheat","olive","resin","vineyard","temple","walls","market","dock"]
+
 
 class CarthageWarGame:
     def __init__(self, game_id: str):
@@ -67,6 +80,7 @@ class CarthageWarGame:
                 "army": 5,
                 "fortLevel": FORT_BONUS.get(t["type"], 0),
                 "goldIncome": 5 + (3 if t["type"] == "city" else 0) + (2 if t["type"] == "port" else 0),
+                "buildings": [],   # list of building keys (e.g. "temple", "wheat")
             })
 
     # ── Player Management ──────────────────────────────────────────────────
@@ -220,6 +234,12 @@ class CarthageWarGame:
 
         terrain_mult = TERRAIN_BONUS.get(dst["type"], 1.0)
         def_power *= terrain_mult
+
+        # Building defense bonus
+        for bk in dst.get("buildings", []):
+            bdef = BUILDINGS.get(bk)
+            if bdef:
+                def_power += bdef.get("defense", 0) * 5
 
         if defender_id and self.players.get(defender_id):
             def_moral = self.players[defender_id]["moral"] / 100.0
@@ -415,6 +435,42 @@ class CarthageWarGame:
         self.add_log(ws_id, f"{amount} soldats recrutes a {t['name']}")
         return {"status": 200}
 
+    def construct(self, ws_id: str, tid: int, building_key: str) -> dict:
+        if self.phase != "planning":
+            return {"error": "Phase de planification terminee", "status": 400}
+        if building_key not in BUILDINGS:
+            return {"error": "Batiment inconnu", "status": 400}
+
+        t = self._get_territory(tid)
+        if not t or t["owner"] != ws_id:
+            return {"error": "Territoire invalide", "status": 400}
+
+        bdef = BUILDINGS[building_key]
+        if building_key in t["buildings"]:
+            return {"error": f"{bdef['name']} deja construit ici", "status": 400}
+
+        # City-type check: temples and walls only in cities
+        if building_key in ("temple", "walls") and t["type"] not in ("city", "capital"):
+            return {"error": f"{bdef['name']} uniquement dans les villes", "status": 400}
+
+        cost = bdef["cost"]
+        if self.players[ws_id]["gold"] < cost:
+            return {"error": f"Or insuffisant ({cost} requis)", "status": 400}
+
+        self.players[ws_id]["gold"] -= cost
+        t["buildings"].append(building_key)
+
+        # Apply immediate effects
+        if bdef["fort"]:
+            t["fortLevel"] = min(5, t["fortLevel"] + bdef["fort"])
+        if bdef["moral"]:
+            self.players[ws_id]["moral"] = min(100, self.players[ws_id]["moral"] + bdef["moral"])
+        if bdef["defense"]:
+            pass  # applied dynamically in combat resolution
+
+        self.add_log(ws_id, f"{bdef['name']} construit a {t['name']}")
+        return {"status": 200}
+
     def set_ready(self, ws_id: str) -> dict:
         if self.phase != "planning":
             return {"error": "Ce n'est pas la phase de planification", "status": 400}
@@ -447,10 +503,18 @@ class CarthageWarGame:
 
         for ws_id in self.players:
             p = self.players[ws_id]
-            income = sum(
+            base_income = sum(
                 self._get_territory(tid)["goldIncome"]
                 for tid in p["territories"]
             )
+            # Building income
+            build_income = 0
+            for tid in p["territories"]:
+                t = self._get_territory(tid)
+                if t:
+                    for bk in t["buildings"]:
+                        build_income += BUILDINGS.get(bk, {}).get("gold", 0)
+            income = base_income + build_income
             p["gold"] += income
             p["moral"] = min(100, p["moral"] + 3)
             p["ready"] = False
@@ -488,6 +552,7 @@ class CarthageWarGame:
                 "owner": t["owner"],
                 "army": t["army"],
                 "fortLevel": t["fortLevel"],
+                "buildings": t["buildings"],
             } for t in self.territories],
             "alliances": [
                 [list(a)[0], list(a)[1]] for a in self.alliances

@@ -314,6 +314,17 @@ function resizeCanvas() {
 
 // ─── Map Rendering ──────────────────────────────────────────────────────────
 
+var BUILDINGS_META = {
+    temple:  { icon:'☥', name:'Temple' },
+    walls:   { icon:'🏰', name:'Remparts' },
+    wheat:   { icon:'🌾', name:'Ble' },
+    olive:   { icon:'🫒', name:'Oliviers' },
+    resin:   { icon:'🌲', name:'Resine' },
+    vineyard:{ icon:'🍇', name:'Vignobles' },
+    market:  { icon:'🏪', name:'Marche' },
+    dock:    { icon:'⚓', name:'Quai' },
+};
+
 var hoverTid = null;
 var hoverPos = { x: 0, y: 0 };
 
@@ -347,6 +358,74 @@ var ADJ = {
     5: [4,14], 6: [7], 7: [6], 8: [10], 9: [0,11],
     10: [8], 11: [9], 12: [0], 13: [2], 14: [0,5,15], 15: [14],
 };
+
+// ─── Territory Polygons (Voronoi-like) ──────────────────────────────────────
+
+var TERRITORY_REGIONS = {};
+
+function computeTerritoryRegions(W, H) {
+    TERRITORY_REGIONS = {};
+    var BOUNDARY_MARGIN = 60;
+
+    for (var i = 0; i < PROVINCE_DATA.length; i++) {
+        var pd = PROVINCE_DATA[i];
+        var pos = geoToScreen(pd.lon, pd.lat, W, H);
+        var adj = ADJ[i] || [];
+        var midpoints = [];
+
+        for (var j = 0; j < adj.length; j++) {
+            var npd = PROVINCE_DATA[adj[j]];
+            if (!npd) continue;
+            var npos = geoToScreen(npd.lon, npd.lat, W, H);
+            var dx = npos.x - pos.x;
+            var dy = npos.y - pos.y;
+            var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            // Perpendicular bisector offset: move perpendicular to edge
+            var px = -dy / dist * 12;
+            var py = dx / dist * 12;
+            midpoints.push({
+                x: (pos.x + npos.x) / 2 + px,
+                y: (pos.y + npos.y) / 2 + py,
+            });
+        }
+
+        // Add boundary extension points for edge territories
+        // Check if this territory is on the edge of the known map
+        var isEdge = adj.length <= 2 || (function () {
+            var neighbors = adj;
+            for (var k = 0; k < PROVINCE_DATA.length; k++) {
+                if (k === i) continue;
+                if (ADJ[k] && ADJ[k].indexOf(i) >= 0) continue;
+            }
+            return true;
+        })();
+
+        // Add points toward the map edges for territories with few neighbors
+        if (midpoints.length < 3) {
+            var edgeDirs = [];
+            // Push toward nearest map edge directions
+            if (pos.x < W * 0.25) edgeDirs.push({ x: -30, y: 0 });
+            if (pos.x > W * 0.75) edgeDirs.push({ x: 30, y: 0 });
+            if (pos.y < H * 0.25) edgeDirs.push({ x: 0, y: -30 });
+            if (pos.y > H * 0.75) edgeDirs.push({ x: 0, y: 30 });
+            for (var k = 0; k < edgeDirs.length; k++) {
+                midpoints.push({
+                    x: pos.x + edgeDirs[k].x,
+                    y: pos.y + edgeDirs[k].y,
+                });
+            }
+        }
+
+        // Sort by angle around territory center
+        midpoints.sort(function (a, b) {
+            return Math.atan2(a.y - pos.y, a.x - pos.x) - Math.atan2(b.y - pos.y, b.x - pos.x);
+        });
+
+        if (midpoints.length >= 3) {
+            TERRITORY_REGIONS[i] = midpoints;
+        }
+    }
+}
 
 function startRender() {
     if (animFrame) cancelAnimationFrame(animFrame);
@@ -520,6 +599,24 @@ function renderTerritories(c, W, H) {
         c.font = '10px sans-serif';
         c.fillText('⚔' + t.army + ' 🏛' + t.fortLevel, pos.x, pos.y + 7);
 
+        // Building icons
+        if (t.buildings && t.buildings.length) {
+            var icons = t.buildings.map(function (bk) {
+                var bm = BUILDINGS_META[bk];
+                return bm ? bm.icon : '';
+            }).filter(function (s) { return s; });
+            if (icons.length) {
+                c.globalAlpha = 0.9;
+                c.font = '9px sans-serif';
+                c.textAlign = 'center';
+                var yOff = 22;
+                for (var bi = 0; bi < Math.min(icons.length, 4); bi++) {
+                    c.fillText(icons[bi], pos.x - 8 + bi * 10, pos.y + yOff);
+                }
+                c.globalAlpha = 1;
+            }
+        }
+
         if (ACTION_MODE === 'move' && MOVE_SOURCE === t.id && t.owner === YOU) {
             c.globalAlpha = 0.5 + 0.3 * Math.sin(time * 0.08);
             c.strokeStyle = '#2ecc71';
@@ -688,8 +785,14 @@ function updateInfoPanel() {
         '⚔ Armee: ' + t.army + '<br>' +
         '🏛 Fortification: Niv.' + t.fortLevel + '<br>' +
         'Type: ' + t.type + '<br>' +
-        (t.capital ? '⭐ CAPITALE' : '') +
-        '</div>';
+        (t.capital ? '⭐ CAPITALE<br>' : '') +
+        '</div>' +
+        (t.buildings && t.buildings.length ? '<div style="font-size:11px;color:#d4a017;margin-top:4px">Batiments:<br>' +
+            t.buildings.map(function (bk) {
+                var bm = BUILDINGS_META[bk];
+                return bm ? '<span style="margin-right:6px">' + bm.icon + ' ' + bm.name + '</span>' : '';
+            }).join('') +
+            '</div>' : '');
 }
 
 function updateActions() {
@@ -737,6 +840,28 @@ function updateActions() {
         buttons.push({ text: '⚔ RECRUTER (10)', action: function () {
             wsSend({ action: 'carthage_action', cmd: 'recruit', tid: t.id, amount: 10 });
         }});
+
+        // Building buttons
+        var BUILD_LIST = [
+            { key:'wheat', label:'🌾 Ble (15+)' },
+            { key:'olive', label:'🫒 Oliviers (20+)' },
+            { key:'resin', label:'🌲 Resine (25+)' },
+            { key:'vineyard', label:'🍇 Vignobles (20+)' },
+            { key:'temple', label:'☥ Temple (30+)' },
+            { key:'walls', label:'🏰 Remparts (40+)' },
+            { key:'market', label:'🏪 Marche (35+)' },
+            { key:'dock', label:'⚓ Quai (25+)' },
+        ];
+        for (var b = 0; b < BUILD_LIST.length; b++) {
+            (function (bk, bl) {
+                var alreadyBuilt = t.buildings && t.buildings.indexOf(bk) >= 0;
+                if (!alreadyBuilt) {
+                    buttons.push({ text: bl, action: function () {
+                        wsSend({ action: 'carthage_action', cmd: 'construct', tid: t.id, building: bk });
+                    }});
+                }
+            })(BUILD_LIST[b].key, BUILD_LIST[b].label);
+        }
     }
 
     if (t && t.owner !== YOU && t.owner !== null) {
