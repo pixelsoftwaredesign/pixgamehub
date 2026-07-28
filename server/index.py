@@ -654,7 +654,7 @@ async def _handle_carthage_action(websocket, ws_id: str, msg: dict):
         result = cwg.break_alliance(ws_id, msg.get("ally"))
 
     elif cmd == "fortify":
-        result = cwg.fortify(ws_id, msg.get("tid"))
+        result = cwg.fortify(ws_id, msg.get("tid"), msg.get("use_stone", False))
 
     elif cmd == "construct":
         result = cwg.construct(ws_id, msg.get("tid"), msg.get("building"))

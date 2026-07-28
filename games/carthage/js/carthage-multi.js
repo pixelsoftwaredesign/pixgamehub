@@ -323,6 +323,10 @@ var BUILDINGS_META = {
     vineyard:{ icon:'🍇', name:'Vignobles' },
     market:  { icon:'🏪', name:'Marche' },
     dock:    { icon:'⚓', name:'Quai' },
+    granary: { icon:'🏪', name:'Grenier' },
+    shipyard:{ icon:'⛵', name:'Chantier naval' },
+    quarry:  { icon:'⛏', name:'Carriere' },
+    forge:   { icon:'⚒', name:'Forge' },
 };
 
 var hoverTid = null;
@@ -771,6 +775,12 @@ function updateInfoPanel() {
             ' | ⚔ Armee: ' + (me ? me.totalArmy : 0) + ' | ❤ Moral: ' + (me ? me.moral : 0) + '%' +
             '</div>' +
             '<div style="font-size:10px;color:#888;margin-top:2px">' +
+            '🌾 Nourriture: ' + (me ? me.food : 0) +
+            ' | ⛵ Navires: ' + (me ? me.ships : 0) +
+            ' | ⛏ Pierre: ' + (me ? me.stone : 0) +
+            ' | ⚒ Armes: ' + (me ? me.weapons : 0) +
+            '</div>' +
+            '<div style="font-size:10px;color:#888;margin-top:2px">' +
             'Phase: ' + GAME.phase + ' | Tour: ' + GAME.turn +
             '</div>';
         return;
@@ -830,7 +840,11 @@ function updateActions() {
         }
 
         buttons.push({ text: '🏗 FORTIFIER (20+ or)', action: function () {
-            wsSend({ action: 'carthage_action', cmd: 'fortify', tid: t.id });
+            wsSend({ action: 'carthage_action', cmd: 'fortify', tid: t.id, use_stone: false });
+        }});
+
+        buttons.push({ text: '🏗 FORTIFIER (8 pierre)', action: function () {
+            wsSend({ action: 'carthage_action', cmd: 'fortify', tid: t.id, use_stone: true });
         }});
 
         buttons.push({ text: '⚔ RECRUTER (5)', action: function () {
@@ -843,10 +857,14 @@ function updateActions() {
 
         // Building buttons
         var BUILD_LIST = [
-            { key:'wheat', label:'🌾 Ble (15+)' },
+            { key:'wheat', label:'🌾 Ble (15+ or)' },
             { key:'olive', label:'🫒 Oliviers (20+)' },
             { key:'resin', label:'🌲 Resine (25+)' },
             { key:'vineyard', label:'🍇 Vignobles (20+)' },
+            { key:'granary', label:'🏪 Grenier (25+)' },
+            { key:'quarry', label:'⛏ Carriere (30+)' },
+            { key:'shipyard', label:'⛵ Chantier naval (35+)' },
+            { key:'forge', label:'⚒ Forge (40+)' },
             { key:'temple', label:'☥ Temple (30+)' },
             { key:'walls', label:'🏰 Remparts (40+)' },
             { key:'market', label:'🏪 Marche (35+)' },

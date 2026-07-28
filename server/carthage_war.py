@@ -39,16 +39,20 @@ TERRAIN_BONUS = {"city": 1.0, "port": 0.8, "fort": 1.3, "temple": 0.6}
 
 # ─── Building Definitions ──────────────────────────────────────────────────────
 BUILDINGS = {
-    "temple":  {"name":"Temple",         "icon":"☥", "cost":30, "gold":0,  "moral":5,  "defense":0.5, "fort":0},
-    "walls":   {"name":"Remparts",       "icon":"🏰","cost":40, "gold":0,  "moral":0,  "defense":0,   "fort":2},
-    "wheat":   {"name":"Champs de ble",  "icon":"🌾","cost":15, "gold":3,  "moral":0,  "defense":0,   "fort":0},
-    "olive":   {"name":"Oliviers",       "icon":"🫒","cost":20, "gold":2,  "moral":1,  "defense":0,   "fort":0},
-    "resin":   {"name":"Atelier resine", "icon":"🌲","cost":25, "gold":4,  "moral":0,  "defense":0,   "fort":0},
-    "vineyard":{"name":"Vignobles",      "icon":"🍇","cost":20, "gold":2,  "moral":2,  "defense":0,   "fort":0},
-    "market":  {"name":"Marche",         "icon":"🏪","cost":35, "gold":5,  "moral":1,  "defense":0,   "fort":0},
-    "dock":    {"name":"Quai",           "icon":"⚓","cost":25, "gold":3,  "moral":0,  "defense":0,   "fort":0},
+    "temple":   {"name":"Temple",         "icon":"☥", "cost":30, "gold":0,  "moral":5,  "defense":0.5, "fort":0, "food":1,  "ship":0, "stone":0, "weapon":0},
+    "walls":    {"name":"Remparts",       "icon":"🏰","cost":40, "gold":0,  "moral":0,  "defense":0,   "fort":2, "food":0,  "ship":0, "stone":0, "weapon":0},
+    "wheat":    {"name":"Champs de ble",  "icon":"🌾","cost":15, "gold":0,  "moral":0,  "defense":0,   "fort":0, "food":5,  "ship":0, "stone":0, "weapon":0},
+    "olive":    {"name":"Oliviers",       "icon":"🫒","cost":20, "gold":1,  "moral":1,  "defense":0,   "fort":0, "food":3,  "ship":0, "stone":0, "weapon":0},
+    "resin":    {"name":"Atelier resine", "icon":"🌲","cost":25, "gold":2,  "moral":0,  "defense":0,   "fort":0, "food":1,  "ship":1, "stone":0, "weapon":0},
+    "vineyard": {"name":"Vignobles",      "icon":"🍇","cost":20, "gold":1,  "moral":2,  "defense":0,   "fort":0, "food":2,  "ship":0, "stone":0, "weapon":0},
+    "market":   {"name":"Marche",         "icon":"🏪","cost":35, "gold":5,  "moral":1,  "defense":0,   "fort":0, "food":0,  "ship":0, "stone":0, "weapon":0},
+    "dock":     {"name":"Quai",           "icon":"⚓","cost":25, "gold":2,  "moral":0,  "defense":0,   "fort":0, "food":0,  "ship":2, "stone":0, "weapon":0},
+    "granary":  {"name":"Grenier",        "icon":"🏪","cost":25, "gold":0,  "moral":0,  "defense":0,   "fort":0, "food":6,  "ship":0, "stone":0, "weapon":0},
+    "shipyard": {"name":"Chantier naval", "icon":"⛵","cost":35, "gold":0,  "moral":0,  "defense":0,   "fort":0, "food":0,  "ship":4, "stone":0, "weapon":0},
+    "quarry":   {"name":"Carriere",       "icon":"⛏","cost":30, "gold":0,  "moral":0,  "defense":0,   "fort":0, "food":0,  "ship":0, "stone":4, "weapon":0},
+    "forge":    {"name":"Forge",          "icon":"⚒","cost":40, "gold":0,  "moral":0,  "defense":0,   "fort":0, "food":0,  "ship":0, "stone":0, "weapon":3},
 }
-BUILDING_ORDER = ["wheat","olive","resin","vineyard","temple","walls","market","dock"]
+BUILDING_ORDER = ["wheat","olive","resin","vineyard","granary","quarry","shipyard","forge","temple","walls","market","dock"]
 
 
 class CarthageWarGame:
@@ -70,6 +74,10 @@ class CarthageWarGame:
     def _init_territories(self):
         self.territories = []
         for t in TERRITORIES:
+            base = {"city": (3,0,0,3), "port": (2,1,0,2), "fort": (1,0,2,2), "temple": (1,0,0,2), "capital": (4,1,1,3)}
+            f, sh, st, g = base.get(t["type"], (1,0,0,1))
+            if t["capital"]:
+                f, sh, st, g = 4, 1, 1, 3
             self.territories.append({
                 "id": t["id"],
                 "name": t["name"],
@@ -79,8 +87,11 @@ class CarthageWarGame:
                 "owner": None,
                 "army": 5,
                 "fortLevel": FORT_BONUS.get(t["type"], 0),
-                "goldIncome": 5 + (3 if t["type"] == "city" else 0) + (2 if t["type"] == "port" else 0),
-                "buildings": [],   # list of building keys (e.g. "temple", "wheat")
+                "goldIncome": g,
+                "foodIncome": f,
+                "shipIncome": sh,
+                "stoneIncome": st,
+                "buildings": [],
             })
 
     # ── Player Management ──────────────────────────────────────────────────
@@ -92,6 +103,10 @@ class CarthageWarGame:
         self.players[ws_id] = {
             "username": username,
             "gold": 100,
+            "food": 80,
+            "ships": 0,
+            "stone": 10,
+            "weapons": 5,
             "moral": 80,
             "totalArmy": 0,
             "territories": [],
@@ -234,6 +249,12 @@ class CarthageWarGame:
 
         terrain_mult = TERRAIN_BONUS.get(dst["type"], 1.0)
         def_power *= terrain_mult
+
+        # Weapons bonus
+        if attacker_id in self.players:
+            atk_power += self.players[attacker_id]["weapons"] * 0.5
+        if defender_id in self.players:
+            def_power += self.players[defender_id]["weapons"] * 0.5
 
         # Building defense bonus
         for bk in dst.get("buildings", []):
@@ -396,7 +417,7 @@ class CarthageWarGame:
 
         return {"status": 200}
 
-    def fortify(self, ws_id: str, tid: int) -> dict:
+    def fortify(self, ws_id: str, tid: int, use_stone: bool = False) -> dict:
         if self.phase != "planning":
             return {"error": "Phase de planification terminee", "status": 400}
 
@@ -404,17 +425,20 @@ class CarthageWarGame:
         if not t or t["owner"] != ws_id:
             return {"error": "Territoire invalide", "status": 400}
 
-        cost = 20 + t["fortLevel"] * 15
-        if self.players[ws_id]["gold"] < cost:
-            return {"error": f"Or insuffisant ({cost} requis)", "status": 400}
-
         if t["fortLevel"] >= 5:
             return {"error": "Fortification au maximum", "status": 400}
 
-        self.players[ws_id]["gold"] -= cost
-        t["fortLevel"] += 1
+        if use_stone and self.players[ws_id]["stone"] >= 8:
+            self.players[ws_id]["stone"] -= 8
+            self.add_log(ws_id, f"Fortifications renforcees a {t['name']} (pierre)")
+        elif self.players[ws_id]["gold"] >= 20 + t["fortLevel"] * 15:
+            cost = 20 + t["fortLevel"] * 15
+            self.players[ws_id]["gold"] -= cost
+            self.add_log(ws_id, f"Fortifications renforcees a {t['name']} (or)")
+        else:
+            return {"error": "Or insuffisant (ou 8 pierre requis)", "status": 400}
 
-        self.add_log(ws_id, f"Fortifications renforcees a {t['name']} (niveau {t['fortLevel']})")
+        t["fortLevel"] += 1
         return {"status": 200}
 
     def recruit(self, ws_id: str, tid: int, amount: int) -> dict:
@@ -449,9 +473,18 @@ class CarthageWarGame:
         if building_key in t["buildings"]:
             return {"error": f"{bdef['name']} deja construit ici", "status": 400}
 
-        # City-type check: temples and walls only in cities
-        if building_key in ("temple", "walls") and t["type"] not in ("city", "capital"):
-            return {"error": f"{bdef['name']} uniquement dans les villes", "status": 400}
+        # Type restrictions
+        type_restrictions = {
+            "temple": ("city", "capital"),
+            "walls": ("city", "capital"),
+            "shipyard": ("port", "city", "capital"),
+            "quarry": ("fort", "city", "capital"),
+            "forge": ("city", "capital"),
+        }
+        if building_key in type_restrictions:
+            allowed = type_restrictions[building_key]
+            if t["type"] not in allowed:
+                return {"error": f"{bdef['name']} requis: {', '.join(allowed)}", "status": 400}
 
         cost = bdef["cost"]
         if self.players[ws_id]["gold"] < cost:
@@ -503,26 +536,71 @@ class CarthageWarGame:
 
         for ws_id in self.players:
             p = self.players[ws_id]
-            base_income = sum(
-                self._get_territory(tid)["goldIncome"]
-                for tid in p["territories"]
-            )
+
+            # Base resource income from territories
+            gold_inc = 0
+            food_inc = 0
+            ship_inc = 0
+            stone_inc = 0
+            weap_inc = 0
+            for tid in p["territories"]:
+                t = self._get_territory(tid)
+                if t:
+                    gold_inc += t.get("goldIncome", 5)
+                    food_inc += t.get("foodIncome", 1)
+                    ship_inc += t.get("shipIncome", 0)
+                    stone_inc += t.get("stoneIncome", 0)
+
             # Building income
-            build_income = 0
             for tid in p["territories"]:
                 t = self._get_territory(tid)
                 if t:
                     for bk in t["buildings"]:
-                        build_income += BUILDINGS.get(bk, {}).get("gold", 0)
-            income = base_income + build_income
-            p["gold"] += income
+                        bd = BUILDINGS.get(bk, {})
+                        gold_inc += bd.get("gold", 0)
+                        food_inc += bd.get("food", 0)
+                        ship_inc += bd.get("ship", 0)
+                        stone_inc += bd.get("stone", 0)
+                        weap_inc += bd.get("weapon", 0)
+
+            p["gold"] += gold_inc
+            p["food"] += food_inc
+            p["ships"] += ship_inc
+            p["stone"] += stone_inc
+            p["weapons"] += weap_inc
+
+            # Food consumption: army eats food
+            army_size = sum(
+                self._get_territory(tid)["army"] for tid in p["territories"]
+            )
+            food_cost = army_size
+            p["food"] -= food_cost
+
+            # Starvation: if food < 0, moral drops and army shrinks
+            if p["food"] < 0:
+                deficit = -p["food"]
+                p["food"] = 0
+                p["moral"] = max(10, p["moral"] - deficit // 4)
+                # Lose troops to starvation
+                for tid in sorted(p["territories"]):
+                    t = self._get_territory(tid)
+                    if t and t["owner"] == ws_id and t["army"] > 1:
+                        lost = min(t["army"] - 1, deficit // 3)
+                        t["army"] -= lost
+                        army_size -= lost
+                        if deficit <= 0:
+                            break
+                        deficit -= lost * 3
+
             p["moral"] = min(100, p["moral"] + 3)
             p["ready"] = False
 
-            for tid in p["territories"]:
-                t = self._get_territory(tid)
-                if t:
-                    t["army"] += 1
+            # Base army growth
+            if p["food"] > 0:
+                for tid in p["territories"]:
+                    t = self._get_territory(tid)
+                    if t and t["owner"] == ws_id:
+                        t["army"] += 1
 
             p["totalArmy"] = sum(
                 self._get_territory(tid)["army"] for tid in p["territories"]
@@ -539,6 +617,10 @@ class CarthageWarGame:
             "players": {pid: {
                 "username": p["username"],
                 "gold": p["gold"],
+                "food": p.get("food", 0),
+                "ships": p.get("ships", 0),
+                "stone": p.get("stone", 0),
+                "weapons": p.get("weapons", 0),
                 "moral": p["moral"],
                 "totalArmy": p["totalArmy"],
                 "territoryCount": len(p["territories"]),
@@ -553,6 +635,10 @@ class CarthageWarGame:
                 "army": t["army"],
                 "fortLevel": t["fortLevel"],
                 "buildings": t["buildings"],
+                "foodIncome": t.get("foodIncome", 0),
+                "shipIncome": t.get("shipIncome", 0),
+                "stoneIncome": t.get("stoneIncome", 0),
+                "goldIncome": t.get("goldIncome", 0),
             } for t in self.territories],
             "alliances": [
                 [list(a)[0], list(a)[1]] for a in self.alliances
