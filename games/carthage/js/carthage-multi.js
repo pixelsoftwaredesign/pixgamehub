@@ -29,13 +29,18 @@ var ctx = null;
 var animFrame = null;
 var time = 0;
 
+var RECONNECT_DELAY = 1000;
+var RECONNECT_MAX = 15000;
+var reconnectAttempts = 0;
+
 // ─── WS Connection ──────────────────────────────────────────────────────────
 
 function connect() {
+    if (WS && (WS.readyState === WebSocket.OPEN || WS.readyState === WebSocket.CONNECTING)) return;
+
     var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     var host = location.hostname;
     var port = (location.port || (proto === 'https:' ? '443' : '80'));
-    // In local dev mode, WS is on 8081, HTTP on 8080
     if (host === 'localhost' || host === '127.0.0.1') {
         port = location.port === '8080' ? '8081' : location.port;
     }
@@ -45,6 +50,8 @@ function connect() {
 
     WS.onopen = function () {
         console.log('[CarthageMulti] WS connected');
+        reconnectAttempts = 0;
+        RECONNECT_DELAY = 1000;
         WS.send(JSON.stringify({
             action: 'join_game',
             gameId: 'carthage',
@@ -80,13 +87,19 @@ function connect() {
 
     WS.onclose = function () {
         console.log('[CarthageMulti] WS disconnected');
-        if (gameContainer) {
-            addLog('system', 'Connexion perdue. Reconnexion...');
-            setTimeout(connect, 3000);
+        WS = null;
+        var delay = Math.min(RECONNECT_DELAY, RECONNECT_MAX);
+        RECONNECT_DELAY *= 1.5;
+        reconnectAttempts++;
+        if (gameContainer || lobbyContainer) {
+            addLog('system', 'Connexion perdue. Reconnexion dans ' + (delay / 1000) + 's...');
+            setTimeout(connect, delay);
         }
     };
 
-    WS.onerror = function () {};
+    WS.onerror = function () {
+        if (WS) WS.close();
+    };
 }
 
 function wsSend(data) {
@@ -434,9 +447,13 @@ function computeTerritoryRegions(W, H) {
 function startRender() {
     if (animFrame) cancelAnimationFrame(animFrame);
     function loop() {
-        time++;
-        if (gameContainer && gameContainer.style.display !== 'none' && ctx && GAME) {
-            renderMap(ctx);
+        try {
+            time++;
+            if (gameContainer && gameContainer.style.display !== 'none' && ctx && GAME) {
+                renderMap(ctx);
+            }
+        } catch (e) {
+            console.warn('[Render]', e);
         }
         animFrame = requestAnimationFrame(loop);
     }

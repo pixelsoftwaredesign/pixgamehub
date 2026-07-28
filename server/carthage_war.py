@@ -115,36 +115,42 @@ class CarthageWarGame:
             "ready": False,
         }
 
-        if len(self.players) == 1:
-            neutral_tids = list(range(16))
-            random.shuffle(neutral_tids)
-            p1_tids = neutral_tids[:4]
-            p1_ally_tid = 0
-            remaining = [t for t in neutral_tids if t not in p1_tids]
-        else:
-            p1_tids = list(self.players.values())[0]["territories"]
-            p1_ally_tid = p1_tids[0]
-            remaining = [t["id"] for t in self.territories if t["id"] not in p1_tids]
+        # Assign starting territories
+        owned = [t["id"] for t in self.territories if t["owner"] is not None]
+
+        # Pick best unowned territories for this player
+        unowned = [t["id"] for t in self.territories if t["owner"] is None]
+        random.shuffle(unowned)
+
+        # Give capital if available
+        if 0 in unowned:
+            unowned.remove(0)
+            unowned.insert(0, 0)
 
         assigned = []
-        for tid in sorted(remaining):
-            if len(assigned) >= 3:
+        for tid in unowned:
+            if len(assigned) >= 4:
                 break
             t = self._get_territory(tid)
             if t and t["owner"] is None:
-                if self._is_adjacent_to_player(tid, p1_tids) or len(assigned) == 0:
+                if len(owned) == 0 or self._is_adjacent_to_player(tid, assigned) or len(assigned) == 0:
                     t["owner"] = ws_id
                     t["army"] = 15 + random.randint(0, 10)
+                    owned.append(tid)
                     assigned.append(tid)
                     self.players[ws_id]["territories"].append(tid)
 
+        # Fallback: assign any remaining unowned
         if not assigned:
-            tid = remaining[0] if remaining else 0
-            t = self._get_territory(tid)
-            t["owner"] = ws_id
-            t["army"] = 15
-            assigned.append(tid)
-            self.players[ws_id]["territories"].append(tid)
+            for tid in unowned:
+                if len(assigned) >= 3:
+                    break
+                t = self._get_territory(tid)
+                if t and t["owner"] is None:
+                    t["owner"] = ws_id
+                    t["army"] = 15
+                    assigned.append(tid)
+                    self.players[ws_id]["territories"].append(tid)
 
         self.players[ws_id]["totalArmy"] = sum(
             self._get_territory(tid)["army"] for tid in assigned
