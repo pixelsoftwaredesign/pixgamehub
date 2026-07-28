@@ -439,7 +439,7 @@ class CarthageWarGame:
             self.players[ws_id]["ready"] = False
 
         self.turn += 1
-        self.phase = "planning"
+        self.start_planning()
 
     def start_planning(self):
         self.phase = "planning"

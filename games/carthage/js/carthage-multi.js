@@ -174,7 +174,6 @@ function updateLobby() {
     for (var pid in GAME.players) {
         var p = GAME.players[pid];
         var isYou = pid === YOU;
-        var isReady = p.ready;
         var div = document.createElement('div');
         div.style.cssText =
             'display:flex;justify-content:space-between;align-items:center;' +
@@ -203,9 +202,19 @@ function updateLobby() {
         btn.style.opacity = '1';
     }
 
-    if (GAME.phase === 'planning' && GAME.turn > 1) {
+    var playerCount = Object.keys(GAME.players).length;
+    if (playerCount >= 2 && GAME.turn === 1) {
+        var label = document.querySelector('#lobby-players div:first-child');
+        if (label) label.textContent = 'JOUEURS — Pret a lancer !';
+        btn.textContent = 'LANCER LA PARTIE';
+        btn.style.borderColor = '#2ecc71';
+        btn.style.color = '#2ecc71';
+    }
+
+    if (GAME.phase === 'planning' && (GAME.turn > 1 || (playerCount >= 2 && GAME.turn === 1 && GAME.players[YOU] && GAME.players[YOU].ready))) {
         showGame();
     }
+}
 }
 
 // ─── Game UI ─────────────────────────────────────────────────────────────────

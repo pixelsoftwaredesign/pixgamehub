@@ -693,13 +693,23 @@ async def _handle_carthage_action(websocket, ws_id: str, msg: dict):
                "accept_alliance", "reject_alliance", "break_alliance", "chat"):
         pass
 
-    state_update = cwg.to_player_state(ws_id) if not state_update else state_update
-
-    if state_update:
-        await _broadcast_carthage(cwg, {
-            "action": "carthage_state",
-            "state": state_update,
-        })
+    # Broadcast personalized state to each player
+    payload = json.dumps({
+        "action": "carthage_state",
+        "state": None,  # will be replaced per-player
+    }, ensure_ascii=False)
+    for pid in list(cwg.players.keys()):
+        conn = connections.get(pid)
+        if conn:
+            try:
+                pstate = cwg.to_player_state(pid)
+                msg = json.dumps({
+                    "action": "carthage_state",
+                    "state": pstate,
+                }, ensure_ascii=False)
+                await conn["ws"].send(msg)
+            except Exception:
+                pass
 
     if cwg.winner:
         await _broadcast_carthage(cwg, {
