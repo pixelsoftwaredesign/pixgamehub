@@ -26,6 +26,8 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
 import websockets
 from websockets.asyncio.server import serve
 
+from server.carthage_war import CarthageWarGame
+
 # ─── Config ───────────────────────────────────────────────────────────────────
 PORT_HTTP = int(os.environ.get("PORT", 8080))
 PORT_WS = int(os.environ.get("PORT_WS", 8081))
@@ -56,7 +58,7 @@ GAMES = {
     "manga":           {"name": "Manga Fighting Arena",    "path": "games/manga/index.html",            "genre": "Manga Battle",   "multiplayer": True},
     "arabparkour":     {"name": "Le Voleur de Bagdad",     "path": "games/arabparkour/index.html",      "genre": "Parkour Arabe",  "multiplayer": False},
     "shadows":         {"name": "Shadows in the City",     "path": "games/shadows/index.html",          "genre": "Social Deduction","multiplayer": True},
-    "carthage":        {"name": "Empire de Carthage",      "path": "games/carthage/index.html",         "genre": "Strategie",      "multiplayer": False},
+    "carthage":        {"name": "Empire de Carthage",      "path": "games/carthage/index.html",         "genre": "Strategie",      "multiplayer": True},
     "carthage_plat":   {"name": "Le Voleur de Carthage",   "path": "games/carthage_platformer/index.html","genre": "Platformer",    "multiplayer": False},
     "engine":          {"name": "Moteur 2D Integral",      "path": "engine/index.html",                 "genre": "Moteur Graphique","multiplayer": False},
 }
@@ -358,6 +360,7 @@ class GameRoom:
 
 
 rooms: dict[str, GameRoom] = {}
+carthage_war_games: dict[str, CarthageWarGame] = {}
 connections: dict[str, Any] = {}
 chat_history: dict[str, list] = {}
 _server_start_time = time.time()
@@ -406,6 +409,21 @@ async def ws_handler(websocket):
                 await _broadcast(game_id, {
                     "action": "player_joined", "id": ws_id, "username": username,
                 }, exclude=ws_id)
+
+                if game_id == "carthage":
+                    if game_id not in carthage_war_games:
+                        carthage_war_games[game_id] = CarthageWarGame(game_id)
+                    cwg = carthage_war_games[game_id]
+                    cwg.add_player(ws_id, username)
+                    await websocket.send(json.dumps({
+                        "action": "carthage_state",
+                        "state": cwg.to_player_state(ws_id),
+                    }))
+                    await _broadcast_carthage(cwg, {
+                        "action": "carthage_player_joined",
+                        "playerId": ws_id,
+                        "username": username,
+                    }, exclude=ws_id)
 
                 print(f"[WS]   {username} -> {game_id}  ({len(room.players)} players)")
 
@@ -512,6 +530,12 @@ async def ws_handler(websocket):
                 resp = _handle_ws_api(api_path, api_body)
                 await websocket.send(json.dumps({"action": "ws_api_response", "id": msg.get("id"), **resp}))
 
+            # ── carthage war game ────────────────────────────────────
+            elif action == "carthage_action":
+                if game_id != "carthage":
+                    continue
+                await _handle_carthage_action(websocket, ws_id, msg)
+
     except websockets.exceptions.ConnectionClosed:
         pass
     finally:
@@ -525,6 +549,26 @@ async def ws_handler(websocket):
             await _broadcast(game_id, {"action": "player_left", "id": ws_id})
             if len(room.players) == 0:
                 del rooms[game_id]
+                if game_id == "carthage" and game_id in carthage_war_games:
+                    del carthage_war_games[game_id]
+
+        if game_id == "carthage" and game_id in carthage_war_games:
+            cwg = carthage_war_games[game_id]
+            cwg.remove_player(ws_id)
+            await _broadcast_carthage(cwg, {
+                "action": "carthage_player_left",
+                "playerId": ws_id,
+                "username": conn.get("username", ws_id[:8]),
+            })
+            if len(cwg.players) <= 1 and cwg.turn > 0 and not cwg.winner:
+                remaining = list(cwg.players.keys())
+                if remaining:
+                    cwg.winner = remaining[0]
+                    await _broadcast_carthage(cwg, {
+                        "action": "carthage_game_over",
+                        "winner": remaining[0],
+                        "winnerName": cwg.players[remaining[0]]["username"],
+                    })
                 print(f"[WS]   Room '{game_id}' closed (empty)")
 
         print(f"[WS] - {ws_id} disconnected  ({len(connections)} total)")
@@ -546,6 +590,135 @@ async def _broadcast(game_id: str, data: dict, exclude: str = ""):
                 dead.append(pid)
     for d in dead:
         rooms[game_id].remove_player(d)
+
+
+async def _broadcast_carthage(cwg: CarthageWarGame, data: dict, exclude: str = ""):
+    payload = json.dumps(data, ensure_ascii=False)
+    dead = []
+    for pid in cwg.players:
+        if pid == exclude:
+            continue
+        conn = connections.get(pid)
+        if conn:
+            try:
+                await conn["ws"].send(payload)
+            except Exception:
+                dead.append(pid)
+    for d in dead:
+        cwg.remove_player(d)
+
+
+async def _handle_carthage_action(websocket, ws_id: str, msg: dict):
+    game_id = "carthage"
+    if game_id not in carthage_war_games:
+        await websocket.send(json.dumps({"action": "carthage_error", "error": "Partie introuvable"}))
+        return
+
+    cwg = carthage_war_games[game_id]
+    cmd = msg.get("cmd", "")
+
+    result = None
+    state_update = None
+
+    if cmd == "get_state":
+        await websocket.send(json.dumps({
+            "action": "carthage_state",
+            "state": cwg.to_player_state(ws_id),
+        }))
+        return
+
+    elif cmd == "start_planning":
+        if cwg.phase != "resolution" and cwg.turn > 1:
+            await websocket.send(json.dumps({"action": "carthage_error", "error": "Deja en phase de planification"}))
+            return
+        cwg.start_planning()
+        state_update = cwg.to_player_state(ws_id)
+        _add_carthage_log(cwg, "Systeme", f"Tour {cwg.turn} — Phase de planification commencee")
+
+    elif cmd == "move_army":
+        result = cwg.move_army(ws_id, msg.get("from"), msg.get("to"), msg.get("amount", 0))
+
+    elif cmd == "attack":
+        result = cwg.attack(ws_id, msg.get("from"), msg.get("to"))
+
+    elif cmd == "propose_alliance":
+        result = cwg.propose_alliance(ws_id, msg.get("to"))
+
+    elif cmd == "accept_alliance":
+        result = cwg.accept_alliance(msg.get("from"), ws_id)
+
+    elif cmd == "reject_alliance":
+        result = cwg.reject_alliance(msg.get("from"), ws_id)
+
+    elif cmd == "break_alliance":
+        result = cwg.break_alliance(ws_id, msg.get("ally"))
+
+    elif cmd == "fortify":
+        result = cwg.fortify(ws_id, msg.get("tid"))
+
+    elif cmd == "recruit":
+        result = cwg.recruit(ws_id, msg.get("tid"), msg.get("amount", 5))
+
+    elif cmd == "ready":
+        result = cwg.set_ready(ws_id)
+
+    elif cmd == "unready":
+        result = cwg.set_unready(ws_id)
+
+    elif cmd == "chat":
+        cwg.add_log(ws_id, msg.get("text", ""))
+        result = {"status": 200}
+
+    else:
+        result = {"error": f"Commande inconnue: {cmd}", "status": 400}
+
+    if result and result.get("status") != 200:
+        await websocket.send(json.dumps({
+            "action": "carthage_error",
+            "cmd": cmd,
+            "error": result.get("error", "Erreur inconnue"),
+        }))
+        return
+
+    if cmd == "attack" and result and "battle" in result:
+        battle = result["battle"]
+        await _broadcast_carthage(cwg, {
+            "action": "carthage_battle",
+            "battle": battle,
+        })
+        if not cwg.winner:
+            _add_carthage_log(cwg, "Systeme", f"Bataille a {battle['territory']} !")
+
+    if cmd in ("move_army", "fortify", "recruit", "ready", "unready", "propose_alliance",
+               "accept_alliance", "reject_alliance", "break_alliance", "chat"):
+        pass
+
+    state_update = cwg.to_player_state(ws_id) if not state_update else state_update
+
+    if state_update:
+        await _broadcast_carthage(cwg, {
+            "action": "carthage_state",
+            "state": state_update,
+        })
+
+    if cwg.winner:
+        await _broadcast_carthage(cwg, {
+            "action": "carthage_game_over",
+            "winner": cwg.winner,
+            "winnerName": cwg.players[cwg.winner]["username"],
+        })
+
+
+def _add_carthage_log(cwg, sender: str, text: str):
+    cwg.message_log.append({
+        "sender": sender,
+        "text": text,
+        "turn": cwg.turn,
+        "time": __import__("time").time(),
+    })
+    if len(cwg.message_log) > 100:
+        cwg.message_log = cwg.message_log[-100:]
+
 
 def _handle_ws_api(path: str, body: dict) -> dict:
     if path == "/auth/register":

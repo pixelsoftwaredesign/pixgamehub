@@ -36,6 +36,14 @@ body { background: #0a0612; overflow: hidden; font-family: 'Segoe UI', sans-seri
     background: linear-gradient(180deg, rgba(184,134,11,0.4), rgba(184,134,11,0.1));
     transform: translateY(-3px); box-shadow: 0 6px 25px rgba(184,134,11,0.3);
 }
+.menu-btn-multi {
+    background: linear-gradient(180deg, rgba(46,204,113,0.2), rgba(46,204,113,0.05));
+    border-color: #2ecc71; color: #2ecc71;
+}
+.menu-btn-multi:hover {
+    background: linear-gradient(180deg, rgba(46,204,113,0.4), rgba(46,204,113,0.1));
+    box-shadow: 0 6px 25px rgba(46,204,113,0.3);
+}
 
 .controls-hint { display: flex; gap: 20px; color: #666; font-size: 12px; }
 
