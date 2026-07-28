@@ -26,7 +26,7 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
 import websockets
 from websockets.asyncio.server import serve
 
-from server.carthage_war import CarthageWarGame
+from carthage_war import CarthageWarGame
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 PORT_HTTP = int(os.environ.get("PORT", 8080))
