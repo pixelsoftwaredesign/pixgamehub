@@ -239,8 +239,15 @@ function updateLobby() {
 
 function showGame() {
     if (lobbyContainer) lobbyContainer.style.display = 'none';
-    if (!gameContainer) createGameUI();
-    gameContainer.style.display = 'flex';
+    if (!gameContainer) {
+        createGameUI();
+        gameContainer.style.display = 'flex';
+        // Canvas dimensions must be set after display is visible
+        setTimeout(resizeCanvas, 50);
+    } else {
+        gameContainer.style.display = 'flex';
+        resizeCanvas();
+    }
 }
 
 function createGameUI() {
@@ -463,7 +470,13 @@ function startRender() {
 function renderMap(c) {
     var W = mapCanvas.width;
     var H = mapCanvas.height;
-    if (W < 10 || H < 10) return;
+    // Ensure canvas has proper dimensions
+    if (W < 10 || H < 10) {
+        resizeCanvas();
+        W = mapCanvas.width;
+        H = mapCanvas.height;
+        if (W < 10 || H < 10) return;
+    }
 
     c.fillStyle = '#0a0612';
     c.fillRect(0, 0, W, H);
