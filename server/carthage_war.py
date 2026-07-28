@@ -51,6 +51,7 @@ BUILDINGS = {
     "shipyard": {"name":"Chantier naval", "icon":"⛵","cost":35, "gold":0,  "moral":0,  "defense":0,   "fort":0, "food":0,  "ship":4, "stone":0, "weapon":0},
     "quarry":   {"name":"Carriere",       "icon":"⛏","cost":30, "gold":0,  "moral":0,  "defense":0,   "fort":0, "food":0,  "ship":0, "stone":4, "weapon":0},
     "forge":    {"name":"Forge",          "icon":"⚒","cost":40, "gold":0,  "moral":0,  "defense":0,   "fort":0, "food":0,  "ship":0, "stone":0, "weapon":3},
+    "fortress": {"name":"Forteresse",     "icon":"🏯","cost":70, "gold":0,  "moral":3,  "defense":2.0,  "fort":3, "food":0,  "ship":0, "stone":0, "weapon":0},
 }
 BUILDING_ORDER = ["wheat","olive","resin","vineyard","granary","quarry","shipyard","forge","temple","walls","market","dock"]
 
@@ -489,6 +490,7 @@ class CarthageWarGame:
         type_restrictions = {
             "temple": ("city", "capital"),
             "walls": ("city", "capital"),
+            "fortress": ("city", "capital"),
             "shipyard": ("port", "city", "capital"),
             "quarry": ("fort", "city", "capital"),
             "forge": ("city", "capital"),

@@ -347,6 +347,7 @@ var BUILDINGS_META = {
     shipyard:{ icon:'⛵', name:'Chantier naval' },
     quarry:  { icon:'⛏', name:'Carriere' },
     forge:   { icon:'⚒', name:'Forge' },
+    fortress:{ icon:'🏯', name:'Forteresse' },
 };
 
 var hoverTid = null;
@@ -789,6 +790,138 @@ function handleMapClick(mx, my) {
     SELECTED_TERRITORY = clicked.id;
     updateActions();
     updateInfoPanel();
+    if (clicked.owner === YOU) {
+        showCityInterface(clicked.id);
+    }
+}
+
+// ─── City Interface (Modal) ───────────────────────────────────────────────────
+
+function showCityInterface(tid) {
+    var existing = document.getElementById('cg-city-modal');
+    if (existing) existing.remove();
+
+    var t = GAME.territories[tid];
+    if (!t) return;
+    var pd = PROVINCE_DATA[t.id];
+    if (!pd) return;
+    var me = GAME.players[YOU];
+    var isYours = t.owner === YOU;
+
+    var modal = document.createElement('div');
+    modal.id = 'cg-city-modal';
+    modal.style.cssText =
+        'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2000;' +
+        'background:rgba(16,10,28,0.97);border:2px solid ' + (isYours ? '#d4a017' : '#555') + ';' +
+        'border-radius:10px;padding:20px;min-width:380px;max-width:450px;max-height:80vh;' +
+        'overflow-y:auto;font-family:"Courier New",monospace;box-shadow:0 0 60px rgba(0,0,0,0.9);';
+
+    // Header
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+        '<div>' +
+            '<span style="font-size:20px;color:#ffd700;font-weight:bold">' + (pd.icon || '🏛') + ' ' + t.name + '</span>' +
+            '<span style="font-size:11px;color:#888;margin-left:8px">[' + t.type + ']</span>' +
+            (t.capital ? '<span style="font-size:12px;color:#ffd700;margin-left:6px">⭐ CAPITALE</span>' : '') +
+        '</div>' +
+        '<button onclick="document.getElementById(\'cg-city-modal\').remove()" style="background:none;border:1px solid #555;color:#888;border-radius:4px;cursor:pointer;padding:2px 8px;font-size:16px">✕</button>' +
+        '</div>';
+
+    // Owner & Status
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:#ccc;margin-bottom:12px;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px">' +
+        '<div>Proprietaire: <span style="color:' + getOwnerColor(t.owner) + '">' + getOwnerName(t.owner) + '</span></div>' +
+        '<div>Armée: <span style="color:#d4a017">⚔' + t.army + '</span></div>' +
+        '<div>Fortification: <span style="color:#d4a017">🏛 Niv.' + t.fortLevel + '</span></div>' +
+        '<div>Production: <span style="color:#2ecc71">🌾' + (t.foodIncome || 0) + ' 🪙' + (t.goldIncome || 0) +
+            (t.shipIncome > 0 ? ' ⛵' + t.shipIncome : '') + (t.stoneIncome > 0 ? ' ⛏' + t.stoneIncome : '') + '</span></div>' +
+        '</div>';
+
+    // Buildings
+    if (t.buildings && t.buildings.length) {
+        html += '<div style="font-size:11px;color:#d4a017;margin-bottom:6px">BATIMENTS:</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">';
+        for (var bi = 0; bi < t.buildings.length; bi++) {
+            var bm = BUILDINGS_META[t.buildings[bi]];
+            if (bm) {
+                html += '<span style="font-size:11px;padding:3px 8px;background:rgba(212,160,23,0.1);border:1px solid rgba(212,160,23,0.2);border-radius:4px;color:#ddd">' +
+                    bm.icon + ' ' + bm.name + '</span>';
+            }
+        }
+        html += '</div>';
+    }
+
+    // Actions
+    if (isYours && GAME.phase === 'planning') {
+        html += '<div style="font-size:11px;color:#d4a017;margin-bottom:6px">ACTIONS:</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px">';
+
+        // Fortify
+        html += '<button onclick="wsSend({action:\'carthage_action\',cmd:\'fortify\',tid:' + t.id + '});document.getElementById(\'cg-city-modal\').remove()" style="padding:5px 10px;font-size:10px;border:1px solid #d4a017;background:rgba(212,160,23,0.1);color:#d4a017;border-radius:4px;cursor:pointer">🏗 Fortif (or)</button>';
+        html += '<button onclick="wsSend({action:\'carthage_action\',cmd:\'fortify\',tid:' + t.id + ',use_stone:true});document.getElementById(\'cg-city-modal\').remove()" style="padding:5px 10px;font-size:10px;border:1px solid #888;background:rgba(136,136,136,0.1);color:#aaa;border-radius:4px;cursor:pointer">🏗 Fortif (pierre)</button>';
+
+        // Recruit
+        html += '<button onclick="wsSend({action:\'carthage_action\',cmd:\'recruit\',tid:' + t.id + ',amount:5});document.getElementById(\'cg-city-modal\').remove()" style="padding:5px 10px;font-size:10px;border:1px solid #e74c3c;background:rgba(231,76,60,0.1);color:#e74c3c;border-radius:4px;cursor:pointer">⚔ Recruter 5</button>';
+        html += '<button onclick="wsSend({action:\'carthage_action\',cmd:\'recruit\',tid:' + t.id + ',amount:10});document.getElementById(\'cg-city-modal\').remove()" style="padding:5px 10px;font-size:10px;border:1px solid #e74c3c;background:rgba(231,76,60,0.15);color:#e74c3c;border-radius:4px;cursor:pointer">⚔ Recruter 10</button>';
+
+        // Move / Attack
+        var hasAdj = ADJ[t.id] && ADJ[t.id].length;
+        if (hasAdj) {
+            html += '<button onclick="ACTION_MODE=\'move\';MOVE_SOURCE=' + t.id + ';document.getElementById(\'cg-city-modal\').remove();updateActions()" style="padding:5px 10px;font-size:10px;border:1px solid #3498db;background:rgba(52,152,219,0.1);color:#3498db;border-radius:4px;cursor:pointer">📦 Deplacer</button>';
+
+            // Check for enemy adjacent
+            var hasEnemy = false;
+            var adjList = ADJ[t.id];
+            for (var aj = 0; aj < adjList.length; aj++) {
+                var n = GAME.territories[adjList[aj]];
+                if (n && n.owner !== YOU) { hasEnemy = true; break; }
+            }
+            if (hasEnemy && t.army >= 2) {
+                html += '<button onclick="ACTION_MODE=\'attack\';MOVE_SOURCE=' + t.id + ';document.getElementById(\'cg-city-modal\').remove();updateActions()" style="padding:5px 10px;font-size:10px;border:1px solid #ff4444;background:rgba(255,68,68,0.1);color:#ff4444;border-radius:4px;cursor:pointer">⚔ Attaquer</button>';
+            }
+        }
+
+        html += '</div>';
+
+        // Construction
+        html += '<div style="font-size:11px;color:#2ecc71;margin-bottom:6px">CONSTRUCTION:</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">';
+        var BUILD_LIST = [
+            { key:'wheat', label:'🌾 Ble (15)' },
+            { key:'olive', label:'🫒 Oliviers (20)' },
+            { key:'resin', label:'🌲 Resine (25)' },
+            { key:'vineyard', label:'🍇 Vignobles (20)' },
+            { key:'granary', label:'🏪 Grenier (25)' },
+            { key:'quarry', label:'⛏ Carriere (30)' },
+            { key:'shipyard', label:'⛵ Chantier (35)' },
+            { key:'forge', label:'⚒ Forge (40)' },
+            { key:'fortress', label:'🏯 Forteresse (70)' },
+            { key:'temple', label:'☥ Temple (30)' },
+            { key:'walls', label:'🏰 Remparts (40)' },
+            { key:'market', label:'🏪 Marche (35)' },
+            { key:'dock', label:'⚓ Quai (25)' },
+        ];
+        for (var bj = 0; bj < BUILD_LIST.length; bj++) {
+            var bk = BUILD_LIST[bj].key;
+            var alreadyBuilt = t.buildings && t.buildings.indexOf(bk) >= 0;
+            if (!alreadyBuilt) {
+                html += '<button onclick="wsSend({action:\'carthage_action\',cmd:\'construct\',tid:' + t.id + ',building:\'' + bk + '\'});document.getElementById(\'cg-city-modal\').remove()" style="padding:4px 8px;font-size:10px;border:1px solid rgba(46,204,113,0.3);background:rgba(46,204,113,0.06);color:#2ecc71;border-radius:3px;cursor:pointer">' + BUILD_LIST[bj].label + '</button>';
+            }
+        }
+        html += '</div>';
+    }
+
+    // LW Panel
+    if (isYours && GAME.phase === 'planning' && me) {
+        html += '<div style="border-top:1px solid rgba(212,160,23,0.15);padding-top:8px;margin-top:4px">' +
+            '<div style="font-size:11px;color:#ffd700;margin-bottom:4px">⚔ LW CONSTRUCTION (' + (me.lwPoints || 0) + ' pts)</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:4px">' +
+            '<button onclick="wsSend({action:\'carthage_action\',cmd:\'build_lw\',item:\'ship\'});document.getElementById(\'cg-city-modal\').remove()" style="padding:4px 8px;font-size:10px;border:1px solid #3498db;background:rgba(52,152,219,0.1);color:#3498db;border-radius:3px;cursor:pointer">⛵ Navire (50)</button>' +
+            '<button onclick="wsSend({action:\'carthage_action\',cmd:\'build_lw\',item:\'weapons\'});document.getElementById(\'cg-city-modal\').remove()" style="padding:4px 8px;font-size:10px;border:1px solid #e74c3c;background:rgba(231,76,60,0.1);color:#e74c3c;border-radius:3px;cursor:pointer">⚒ Armes (30)</button>' +
+            '<button onclick="wsSend({action:\'carthage_action\',cmd:\'build_lw\',item:\'factory\'});document.getElementById(\'cg-city-modal\').remove()" style="padding:4px 8px;font-size:10px;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;border-radius:3px;cursor:pointer">🏭 Usine (80)</button>' +
+            '</div></div>';
+    }
+
+    modal.innerHTML = html;
+    document.body.appendChild(modal);
 }
 
 // ─── UI Panels ───────────────────────────────────────────────────────────────
@@ -898,6 +1031,7 @@ function updateActions() {
             { key:'quarry', label:'⛏ Carriere (30+)' },
             { key:'shipyard', label:'⛵ Chantier naval (35+)' },
             { key:'forge', label:'⚒ Forge (40+)' },
+            { key:'fortress', label:'🏯 Forteresse (70+)' },
             { key:'temple', label:'☥ Temple (30+)' },
             { key:'walls', label:'🏰 Remparts (40+)' },
             { key:'market', label:'🏪 Marche (35+)' },
