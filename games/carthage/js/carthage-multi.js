@@ -33,7 +33,13 @@ var time = 0;
 
 function connect() {
     var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    var url = proto + '//' + location.host;
+    var host = location.hostname;
+    var port = (location.port || (proto === 'https:' ? '443' : '80'));
+    // In local dev mode, WS is on 8081, HTTP on 8080
+    if (host === 'localhost' || host === '127.0.0.1') {
+        port = location.port === '8080' ? '8081' : location.port;
+    }
+    var url = proto + '//' + host + ':' + port;
 
     WS = new WebSocket(url);
 
