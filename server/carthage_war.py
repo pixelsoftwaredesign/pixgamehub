@@ -107,6 +107,7 @@ class CarthageWarGame:
             "ships": 0,
             "stone": 10,
             "weapons": 5,
+            "lwPoints": 0,
             "moral": 80,
             "totalArmy": 0,
             "territories": [],
@@ -307,6 +308,11 @@ class CarthageWarGame:
             dst["army"] = max(1, remaining)
             dst["fortLevel"] = max(0, dst["fortLevel"] - 1)
 
+            # LW Points for victory (base 30 + bonus for fort level + territory value)
+            lw_reward = 30 + dst["fortLevel"] * 5 + (10 if dst["capital"] else 0)
+            if attacker_id in self.players:
+                self.players[attacker_id]["lwPoints"] += lw_reward
+
             if attacker_id in self.players:
                 self.players[attacker_id]["territories"].append(to_tid)
             if defender_id in self.players:
@@ -504,6 +510,39 @@ class CarthageWarGame:
         self.add_log(ws_id, f"{bdef['name']} construit a {t['name']}")
         return {"status": 200}
 
+    # ── LW Points Construction ──────────────────────────────────────────
+
+    LW_COSTS = {
+        "ship":    {"name": "Navire de guerre", "lw": 50},
+        "weapons": {"name": "Lot d'armes",      "lw": 30},
+        "factory": {"name": "Usine d'armes",    "lw": 80},
+    }
+
+    def build_lw(self, ws_id: str, item: str) -> dict:
+        if self.phase != "planning":
+            return {"error": "Phase de planification terminee", "status": 400}
+        if item not in self.LW_COSTS:
+            return {"error": "Objet inconnu", "status": 400}
+        p = self.players.get(ws_id)
+        if not p:
+            return {"error": "Joueur introuvable", "status": 404}
+        cost = self.LW_COSTS[item]["lw"]
+        if p["lwPoints"] < cost:
+            return {"error": f"Points LW insuffisants ({cost} requis)", "status": 400}
+
+        p["lwPoints"] -= cost
+        name = self.LW_COSTS[item]["name"]
+
+        if item == "ship":
+            p["ships"] += 1
+        elif item == "weapons":
+            p["weapons"] += 5
+        elif item == "factory":
+            p["lw_factories"] = p.get("lw_factories", 0) + 1
+
+        self.add_log(ws_id, f"{name} construit ({cost} LW)")
+        return {"status": 200, "lwPoints": p["lwPoints"]}
+
     def set_ready(self, ws_id: str) -> dict:
         if self.phase != "planning":
             return {"error": "Ce n'est pas la phase de planification", "status": 400}
@@ -563,6 +602,9 @@ class CarthageWarGame:
                         stone_inc += bd.get("stone", 0)
                         weap_inc += bd.get("weapon", 0)
 
+            # Factory passive weapon production
+            weap_inc += p.get("lw_factories", 0) * 2
+
             p["gold"] += gold_inc
             p["food"] += food_inc
             p["ships"] += ship_inc
@@ -621,6 +663,8 @@ class CarthageWarGame:
                 "ships": p.get("ships", 0),
                 "stone": p.get("stone", 0),
                 "weapons": p.get("weapons", 0),
+                "lwPoints": p.get("lwPoints", 0),
+                "lwFactories": p.get("lw_factories", 0),
                 "moral": p["moral"],
                 "totalArmy": p["totalArmy"],
                 "territoryCount": len(p["territories"]),

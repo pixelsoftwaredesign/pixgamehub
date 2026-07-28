@@ -780,6 +780,9 @@ function updateInfoPanel() {
             ' | ⛏ Pierre: ' + (me ? me.stone : 0) +
             ' | ⚒ Armes: ' + (me ? me.weapons : 0) +
             '</div>' +
+            '<div style="font-size:10px;color:#ffd700;margin-top:2px">' +
+            '⚔ LW: ' + (me ? me.lwPoints : 0) + ' pts' +
+            '</div>' +
             '<div style="font-size:10px;color:#888;margin-top:2px">' +
             'Phase: ' + GAME.phase + ' | Tour: ' + GAME.turn +
             '</div>';
@@ -929,6 +932,26 @@ function updateActions() {
         btn.onmouseout = function () { this.style.background = 'rgba(212,160,23,0.08)'; };
         btn.onclick = buttons[k].action;
         el.appendChild(btn);
+    }
+
+    // LW Construction panel
+    if (GAME.players[YOU]) {
+        var lwEl = document.getElementById('cg-lw-panel');
+        if (!lwEl) {
+            lwEl = document.createElement('div');
+            lwEl.id = 'cg-lw-panel';
+            lwEl.style.cssText = 'padding:8px;border-top:1px solid rgba(212,160,23,0.15);flex-shrink:0';
+            var sidebar = document.getElementById('cg-sidebar');
+            if (sidebar) sidebar.appendChild(lwEl);
+        }
+        var me = GAME.players[YOU];
+        lwEl.innerHTML = '<div style="font-size:11px;color:#ffd700;margin-bottom:4px">⚔ CONSTRUCTION LW (' + (me.lwPoints || 0) + ' pts)</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:4px">' +
+            '<button onclick="wsSend({action:\'carthage_action\',cmd:\'build_lw\',item:\'ship\'})" style="padding:5px 10px;font-size:10px;border:1px solid #3498db;background:rgba(52,152,219,0.1);color:#3498db;border-radius:3px;cursor:pointer">⛵ Navire (50 LW)</button>' +
+            '<button onclick="wsSend({action:\'carthage_action\',cmd:\'build_lw\',item:\'weapons\'})" style="padding:5px 10px;font-size:10px;border:1px solid #e74c3c;background:rgba(231,76,60,0.1);color:#e74c3c;border-radius:3px;cursor:pointer">⚒ Armes (30 LW)</button>' +
+            '<button onclick="wsSend({action:\'carthage_action\',cmd:\'build_lw\',item:\'factory\'})" style="padding:5px 10px;font-size:10px;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;border-radius:3px;cursor:pointer">🏭 Usine (80 LW)</button>' +
+            '</div>' +
+            (me.lwFactories ? '<div style="font-size:9px;color:#2ecc71;margin-top:2px">🏭 Usines: ' + me.lwFactories + ' (+' + (me.lwFactories * 2) + ' armes/tour)</div>' : '');
     }
 }
 
