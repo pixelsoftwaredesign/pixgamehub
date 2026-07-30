@@ -34,6 +34,8 @@ CITY_DATA = [
     ("Dougga (Tunisie)", 9.2211, 36.4222),
     ("El Jem (Tunisie)", 10.7072, 35.2975),
     ("Gabès (Tunisie)", 10.1033, 33.8833),
+    ("Djerba (Tunisie)", 10.8500, 33.7800),
+    ("Malte", 14.3750, 35.9375),
     ("Alger (Algérie)", 3.0588, 36.7538),
     ("Tlemcen (Algérie)", -1.3150, 34.8783),
     ("Constantine (Algérie)", 6.6147, 36.3650),

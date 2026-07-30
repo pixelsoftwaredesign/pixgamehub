@@ -1117,10 +1117,21 @@ class CarthageWarGame:
         }
 
         if new_t["interior_grid"] is None:
-            ig = [[None]*10 for _ in range(10)]
-            for i in range(10):
-                ig[0][i] = ig[9][i] = ig[i][0] = ig[i][9] = "wall"
-            ig[4][4] = ig[5][5] = "center"
+            GS = 12
+            ig = [[None]*GS for _ in range(GS)]
+            octagon = lambda r,c: (
+                (r == 0 or r == GS-1) and 4 <= c <= 7 or
+                (r == 1 or r == GS-2) and 3 <= c <= 8 or
+                (r == 2 or r == GS-3) and 2 <= c <= 9 or
+                (r == 3 or r == GS-4) and 1 <= c <= 10 or
+                4 <= r <= 7 and 0 <= c <= GS-1
+            )
+            for r in range(GS):
+                for c in range(GS):
+                    if octagon(r, c):
+                        if not octagon(r-1, c) or not octagon(r+1, c) or not octagon(r, c-1) or not octagon(r, c+1):
+                            ig[r][c] = "wall"
+            ig[5][5] = ig[6][6] = "center"
             new_t["interior_grid"] = ig
 
         # Compute adjacency: link to nearest territories within 1000 km

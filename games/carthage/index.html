@@ -739,14 +739,12 @@ class Game {
     this.selId = t.id;
     this._cityTool = 'wall';
     document.getElementById('city-overlay').style.display = 'block';
-    this._cityCanvasReady = false;
-    setTimeout(() => { this.renderCityView(t); }, 50);
+    setTimeout(() => this.renderCityView(t), 60);
   }
 
   closeCityView() {
     document.getElementById('city-overlay').style.display = 'none';
     this.selId = null;
-    this._cityCanvasReady = false;
   }
 
   setCityTool(tool) {
@@ -766,18 +764,29 @@ class Game {
     document.getElementById('city-tool-status').textContent =
       (names[tool]||tool) + ' (' + (costs[tool]||'?') + '💰)';
     document.querySelectorAll('.city-tool-btn').forEach(b => {
-      b.style.background = b.dataset.tool === tool ? '#e2a03d' : '#555';
-      b.style.color = b.dataset.tool === tool ? '#111' : '#fff';
+      b.style.background = b.dataset.tool === tool ? '#e2a03d' : '#3a2a1a';
+      b.style.color = b.dataset.tool === tool ? '#111' : '#cca';
+      b.style.borderColor = b.dataset.tool === tool ? '#e2a03d' : '#5a4a3a';
     });
+  }
+
+  _oct(r, c) {
+    let GS = 12;
+    if (r === 0 || r === GS-1) return c >= 4 && c <= 7;
+    if (r === 1 || r === GS-2) return c >= 3 && c <= 8;
+    if (r === 2 || r === GS-3) return c >= 2 && c <= 9;
+    if (r === 3 || r === GS-4) return c >= 1 && c <= 10;
+    return c >= 0 && c <= GS-1;
   }
 
   renderCityView(t) {
     let me = this.players[this.myId];
     if (!me) return;
     this._cityTerr = t;
+    let ig = t.interior_grid || [];
+    let wallCount = ig.flat().filter(c => c && c.startsWith('wall')).length;
 
     document.getElementById('city-title').textContent = t.name + (t.capital ? ' 🏛 Capitale' : '');
-    let wallCount = (t.interior_grid||[]).flat().filter(c => c && c.startsWith('wall')).length;
     document.getElementById('city-stats').textContent =
       '👥 ' + (t.population||0).toLocaleString() +
       ' | 🛡 ' + (t.army||0) +
@@ -786,14 +795,9 @@ class Game {
       ' | 🌲 ' + (me.wood||0) + ' ⛰ ' + (me.stone||0) +
       ' | 🪙 ' + (me.gold||0);
 
-    document.getElementById('city-upgrade-btn').onclick = () => {
-      this.send('upgrade_city', {tid: t.id});
-    };
-    document.getElementById('city-upgrade-btn').textContent =
-      '🏛 Ameliorer (' + ((t.level||1)*100) + '💰)';
-    document.getElementById('city-auto-btn').onclick = () => {
-      this.autoLandscape(t.id);
-    };
+    document.getElementById('city-upgrade-btn').onclick = () => this.send('upgrade_city', {tid: t.id});
+    document.getElementById('city-upgrade-btn').textContent = '🏛 Ameliorer (' + ((t.level||1)*100) + '💰)';
+    document.getElementById('city-auto-btn').onclick = () => this.autoLandscape(t.id);
 
     this.setCityTool(this._cityTool || 'wall');
     this.renderCityCanvas(t);
@@ -803,36 +807,24 @@ class Game {
     let canvas = document.getElementById('city-canvas');
     if (!canvas) return;
     let ig = t.interior_grid || [];
-    let gs = ig.length || 10;
-    let tileSize = 50;
-    let pad = 10;
-    let w = gs * tileSize + pad * 2;
-    let h = gs * tileSize + pad * 2;
-    canvas.width = w;
-    canvas.height = h;
-    let ctx = canvas.getContext('2d');
+    let GS = ig.length || 12;
+    let T = 52, P = 18;
+    let R = T / 2 * 0.86;
+    canvas.width = GS * T + P * 2;
+    canvas.height = GS * T + P * 2;
+    let ctx = canvas.getContext('2d'), oct = this._oct.bind(this);
 
-    // Octagon mask: cells to exclude (corner cuts)
-    // Row 0: cols 2-7 (exclude 0,1,8,9)
-    // Row 1: cols 1-8 (exclude 0,9)
-    // Row 2-7: all 10 cols
-    // Row 8: cols 1-8
-    // Row 9: cols 2-7
-    let oct = (r, c) => {
-      if (r === 0 || r === gs-1) return c >= 2 && c <= gs-3;
-      if (r === 1 || r === gs-2) return c >= 1 && c <= gs-2;
-      return c >= 0 && c <= gs-1;
-    };
+    ctx.fillStyle = '#030104';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Colors per building type
-    let tileColors = {
-      wall:'#5a2d22', wall_2:'#7a3d2a', wall_3:'#a85d3a',
-      street:'#4a4a4a', plaza:'#2a4a6a', hammam:'#6a4a2a',
-      temple_small:'#5a2a4a', garden:'#2a5a2a', fountain:'#2a4a6a',
+    let tc = {
+      wall:'#5a2d22', wall_2:'#7a3d2a', wall_3:'#9a5d3a',
+      street:'#3a3a3a', plaza:'#2a4a6a', hammam:'#6a4a2a',
+      temple_small:'#5a2a4a', garden:'#2a5a2a', fountain:'#2a4a7a',
       tree:'#1a4a2a', pine:'#0a3a1a', rocks:'#5a5a5a', mountain:'#3a3a3a',
       barracks:'#4a2a1a', market:'#6a5a1a', house:'#4a3a2a', center:'#8a6a2a'
     };
-    let tileIcons = {
+    let icons = {
       wall:'🧱', wall_2:'🧱', wall_3:'🏰',
       street:'🛤', plaza:'⛲', hammam:'♨️',
       temple_small:'☥', garden:'🌺', fountain:'⛲',
@@ -840,130 +832,147 @@ class Game {
       barracks:'⚔️', market:'💰', house:'🏠', center:'🏛'
     };
 
-    // Draw background
-    ctx.fillStyle = '#0a0608';
-    ctx.fillRect(0, 0, w, h);
+    function drawOctCell(cx, cy, r, fill, stroke, lw) {
+      ctx.beginPath();
+      let a0 = Math.PI / 8;
+      ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
+      for (let i = 1; i < 8; i++) {
+        let a = Math.PI * i / 4 + a0;
+        ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+      }
+      ctx.closePath();
+      if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); }
+    }
 
-    // Draw tiles
-    for (let r = 0; r < gs; r++) {
-      for (let c = 0; c < gs; c++) {
-        let x = pad + c * tileSize;
-        let y = pad + r * tileSize;
-        let cell = ig[r] && ig[r][c] ? ig[r][c] : null;
-        let isOct = oct(r, c);
+    for (let r = 0; r < GS; r++) {
+      for (let c = 0; c < GS; c++) {
+        let cx = P + c * T + T/2;
+        let cy = P + r * T + T/2;
+        let cell = (ig[r] && ig[r][c]) || null;
+        let inOct = oct(r, c);
 
-        if (!isOct) {
-          // Corner (outside octagon) - dark empty
-          ctx.fillStyle = '#050305';
-          ctx.fillRect(x, y, tileSize, tileSize);
-          continue;
-        }
+        if (!inOct) continue;
 
-        // Tile background
+        // Fill & stroke per cell type
+        let fillCol, strCol;
         if (cell === null) {
-          ctx.fillStyle = (r + c) % 2 === 0 ? '#1a1518' : '#150e11';
-        } else {
-          ctx.fillStyle = tileColors[cell] || '#2a2a2a';
-        }
-        ctx.fillRect(x + 1, y + 1, tileSize - 2, tileSize - 2);
-
-        // Subtle border
-        ctx.strokeStyle = cell ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.06)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x + 0.5, y + 0.5, tileSize - 1, tileSize - 1);
-
-        // Wall special rendering
-        if (cell && cell.startsWith('wall')) {
-          let level = cell === 'wall_3' ? 3 : (cell === 'wall_2' ? 2 : 1);
-          let wc = ['#8d3629','#b23b2b','#e2a03d'][level-1];
-          // Draw stone block pattern
-          ctx.fillStyle = wc;
-          ctx.fillRect(x + 4, y + 4, tileSize - 8, tileSize - 8);
-          ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+          fillCol = '#120a0e';
+          strCol = 'rgba(255,255,255,0.12)';
+        } else if (cell.startsWith('wall')) {
+          let lvl = cell === 'wall_3' ? 3 : (cell === 'wall_2' ? 2 : 1);
+          let wc = ['#5a2d22','#7a3d2a','#9a5d3a'][lvl-1];
+          let wb = ['#8d3629','#b23b2b','#e2a03d'][lvl-1];
+          drawOctCell(cx, cy, R, wc, wb, 1.5);
+          // Brick lines
+          ctx.save();
+          ctx.beginPath();
+          let a0 = Math.PI / 8;
+          ctx.moveTo(cx + R * 0.85 * Math.cos(a0), cy + R * 0.85 * Math.sin(a0));
+          for (let i = 1; i < 8; i++) {
+            let a = Math.PI * i / 4 + a0;
+            ctx.lineTo(cx + R * 0.85 * Math.cos(a), cy + R * 0.85 * Math.sin(a));
+          }
+          ctx.closePath();
+          ctx.clip();
+          ctx.strokeStyle = 'rgba(0,0,0,0.25)';
           ctx.lineWidth = 1;
-          ctx.strokeRect(x + 4, y + 4, tileSize - 8, tileSize - 8);
-          // Level indicator
+          for (let ly = cy - R * 0.7; ly < cy + R * 0.7; ly += 7) {
+            ctx.beginPath(); ctx.moveTo(cx - R, ly); ctx.lineTo(cx + R, ly); ctx.stroke();
+          }
+          ctx.restore();
+          // Level
           ctx.fillStyle = '#fff';
           ctx.font = 'bold 8px monospace';
           ctx.textAlign = 'center';
-          ctx.fillText('Lv' + level, x + tileSize/2, y + 8);
-          // Wall icon
-          ctx.font = '20px serif';
-          ctx.fillText('🧱', x + tileSize/2, y + tileSize - 8);
+          ctx.fillText('L' + lvl, cx, cy - 6);
+          ctx.font = '15px serif';
+          ctx.fillText('🧱', cx, cy + 10);
           continue;
+        } else if (cell === 'center') {
+          drawOctCell(cx, cy, R, '#6a5a2a', '#e2a03d', 1.5);
+          // Gold glow
+          let grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, R);
+          grad.addColorStop(0, 'rgba(226,160,61,0.25)');
+          grad.addColorStop(1, 'rgba(226,160,61,0)');
+          drawOctCell(cx, cy, R, grad, null, 0);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 8px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('N' + (t.level||1), cx, cy - 6);
+          ctx.font = '22px serif';
+          ctx.fillText('🏛', cx, cy + 8);
+          continue;
+        } else {
+          fillCol = tc[cell] || '#2a2a2a';
+          strCol = 'rgba(255,255,255,0.28)';
         }
 
-        // Empty cell hint
-        if (cell === null) {
-          ctx.fillStyle = 'rgba(255,255,255,0.08)';
-          ctx.font = '16px sans-serif';
+        drawOctCell(cx, cy, R, fillCol, strCol, 1);
+
+        // Icon for non-wall, non-center
+        if (cell && !cell.startsWith('wall') && cell !== 'center') {
+          ctx.font = '19px serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('+', x + tileSize/2, y + tileSize/2);
-          continue;
+          ctx.fillText(icons[cell] || '⬜', cx, cy);
+        } else if (cell === null) {
+          // faint crosshair
+          ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+          ctx.lineWidth = 1;
+          let h = R * 0.45;
+          ctx.beginPath();
+          ctx.moveTo(cx - h, cy); ctx.lineTo(cx + h, cy);
+          ctx.moveTo(cx, cy - h); ctx.lineTo(cx, cy + h);
+          ctx.stroke();
         }
-
-        // Center special
-        if (cell === 'center') {
-          ctx.fillStyle = '#8a6a2a';
-          ctx.fillRect(x + 2, y + 2, tileSize - 4, tileSize - 4);
-          ctx.fillStyle = '#e2a03d';
-          ctx.font = 'bold 9px monospace';
-          ctx.textAlign = 'center';
-          ctx.fillText('Niv.' + (t.level||1), x + tileSize/2, y + 8);
-          ctx.font = '24px serif';
-          ctx.fillText('🏛', x + tileSize/2, y + tileSize - 6);
-          continue;
-        }
-
-        // Regular building
-        let icon = tileIcons[cell] || '⬜';
-        ctx.font = '22px serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(icon, x + tileSize/2, y + tileSize/2);
       }
     }
 
-    // Octagon border highlight
-    ctx.strokeStyle = 'rgba(226,160,61,0.3)';
+    // Octagon border glow
+    ctx.save();
+    ctx.shadowColor = '#e2a03d';
+    ctx.shadowBlur = 20;
+    ctx.strokeStyle = 'rgba(226,160,61,0.4)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    for (let r = 0; r < gs; r++) {
-      for (let c = 0; c < gs; c++) {
+    let edgeDrawn = false;
+    for (let r = 0; r < GS; r++) {
+      for (let c = 0; c < GS; c++) {
+        let cx = P + c * T + T/2, cy = P + r * T + T/2;
         if (oct(r, c) && !oct(r, c+1)) {
-          let x = pad + (c+1) * tileSize;
-          let y1 = pad + r * tileSize;
-          let y2 = pad + (r+1) * tileSize;
-          ctx.moveTo(x, y1); ctx.lineTo(x, y2);
-        }
-        if (oct(r, c) && !oct(r+1, c)) {
-          let y = pad + (r+1) * tileSize;
-          let x1 = pad + c * tileSize;
-          let x2 = pad + (c+1) * tileSize;
-          ctx.moveTo(x1, y); ctx.lineTo(x2, y);
+          let ex = P + (c+1) * T;
+          if (!edgeDrawn) { ctx.moveTo(ex, cy - T/2); edgeDrawn = true; }
+          ctx.lineTo(ex, cy + T/2);
         }
       }
     }
     ctx.stroke();
+    ctx.restore();
 
     // Click handler
     canvas.onclick = (e) => {
       let rect = canvas.getBoundingClientRect();
-      let sx = e.clientX - rect.left;
-      let sy = e.clientY - rect.top;
-      let cs = canvas.width / gs;
-      let c = Math.floor(sx / cs);
-      let r = Math.floor(sy / cs);
-      if (oct(r, c)) {
-        this.handleCityTileClick(t, r, c);
+      let ratio = canvas.width / rect.width;
+      let mx = (e.clientX - rect.left) * ratio;
+      let my = (e.clientY - rect.top) * ratio;
+      let gc = Math.floor((mx - P) / T);
+      let gr = Math.floor((my - P) / T);
+      if (gc >= 0 && gr >= 0 && gc < GS && gr < GS && oct(gr, gc)) {
+        // Check if click is inside the octagonal cell
+        let cx = P + gc * T + T/2, cy = P + gr * T + T/2;
+        let dx = mx - cx, dy = my - cy;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist <= R) {
+          this.cityTileClick(t, gr, gc);
+        }
       }
     };
   }
 
-  handleCityTileClick(t, r, c) {
+  cityTileClick(t, r, c) {
     let ig = t.interior_grid || [];
-    let cell = ig[r] && ig[r][c] ? ig[r][c] : null;
+    let cell = (ig[r] && ig[r][c]) || null;
     let tool = this._cityTool || 'wall';
 
     // Wall upgrade
@@ -971,21 +980,21 @@ class Game {
       let next = cell === 'wall' ? 'wall_2' : (cell === 'wall_2' ? 'wall_3' : null);
       if (next) {
         this.send('build_interior', {tid: t.id, building: next, gx: c, gy: r});
-        document.getElementById('city-msg').textContent = '🏗️ Amelioration du mur...';
+        document.getElementById('city-msg').textContent = '🏗️ Mur ameliore...';
       } else {
         document.getElementById('city-msg').textContent = '🏰 Mur au niveau maximum';
       }
       return;
     }
 
-    // Build on empty
+    // Build
     if (cell === null) {
       this.send('build_interior', {tid: t.id, building: tool, gx: c, gy: r});
       let names = {wall:'Mur', wall_2:'Mur+', wall_3:'Citadelle', street:'Rue', plaza:'Place',
         hammam:'Hammam', temple_small:'Temple', garden:'Jardin', fountain:'Fontaine',
         tree:'Arbre', pine:'Pin', rocks:'Rocher', mountain:'Montagne',
         barracks:'Caserne', market:'Marche', house:'Logement'};
-      document.getElementById('city-msg').textContent = '🏗️ Construction: ' + (names[tool]||tool) + '...';
+      document.getElementById('city-msg').textContent = '🏗️ ' + (names[tool]||tool) + ' en construction...';
       return;
     }
 
@@ -994,13 +1003,12 @@ class Game {
 
   autoLandscape(tid) {
     let t = this.territories.find(x => x.id === tid);
-    if (!t) return;
-    let ig = t.interior_grid || [];
-    // Fill empty cells with trees/rocks/streets
+    if (!t || !t.interior_grid) return;
     let items = ['tree','pine','rocks','garden','street','tree'];
-    for (let r = 0; r < ig.length; r++) {
-      for (let c = 0; c < ig[r].length; c++) {
-        if (ig[r][c] === null) {
+    let oct = this._oct.bind(this);
+    for (let r = 0; r < t.interior_grid.length; r++) {
+      for (let c = 0; c < t.interior_grid[r].length; c++) {
+        if (t.interior_grid[r][c] === null && oct(r, c)) {
           let pick = items[Math.floor(Math.random() * items.length)];
           this.send('build_interior', {tid, building: pick, gx: c, gy: r});
         }
