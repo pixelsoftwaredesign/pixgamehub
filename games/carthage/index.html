@@ -395,27 +395,38 @@ function handleWS(msg) {
     let isNaval = terr && (terr.type === "port" || terr.name.includes("Mer") || b.naval);
     if (terr) {
       let px = terr._px, py = terr._py;
-      if (isNaval) {
-        // Naval battle FX: water splashes, ship fire
-        game.addFX(px, py, "#4a9eff", 40, 3);
-        game.addFX(px, py, "#ff6b35", 25, 4);
-        for (let i = 0; i < 25; i++) {
-          let a = Math.random() * 6.2832;
-          game.fx.push({ x: px + (Math.random()-0.5)*40, y: py + (Math.random()-0.5)*40,
-            vx: Math.cos(a)*(0.5+Math.random()*2), vy: Math.sin(a)*(0.5+Math.random()*2),
-            life: 50+Math.random()*30, ml: 80, s: 1+Math.random()*2.5,
-            ship: i%3===0, color: ["#ff6b35","#ffd700","#4a9eff","#fff"][i%4] });
-        }
-      } else {
-        game.addFX(px, py, "#ffd700", 50, 6);
-        game.addFX(px, py, "#ff4757", 40, 5);
-        game.addFX(px, py, "#fff", 30, 4);
-        for (let i = 0; i < 20; i++) {
+      // ── Big explosion at target ──
+      game.addFX(px, py, "#ffd700", 60, 7);
+      game.addFX(px, py, "#ff4757", 50, 6);
+      game.addFX(px, py, "#fff", 40, 5);
+      for (let i = 0; i < 30; i++) {
+        let a = Math.random() * 6.2832;
+        let s = 0.5 + Math.random() * 4;
+        game.fx.push({ x: px + (Math.random()-0.5)*40, y: py + (Math.random()-0.5)*40,
+          vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+          life: 30+Math.random()*25, ml: 55, s: 0.5+Math.random()*1.5,
+          color: ["#ff6b35","#ffd700","#ff4757","#fff","#aaa"][i%5] });
+      }
+      // Wall destruction sparks
+      if (b.wallsDestroyed > 0) {
+        game.addFX(px, py, "#8d3629", b.wallsDestroyed * 3, 5);
+        for (let i = 0; i < b.wallsDestroyed * 2; i++) {
           let a = Math.random() * 6.2832;
           game.fx.push({ x: px + (Math.random()-0.5)*30, y: py + (Math.random()-0.5)*30,
             vx: Math.cos(a)*(1+Math.random()*3), vy: Math.sin(a)*(1+Math.random()*3),
-            life: 40+Math.random()*20, ml: 60, s: 0.5+Math.random(),
-            color: ["#ff6b35","#ffd700","#ff4757","#fff"][i%4] });
+            life: 20+Math.random()*15, ml: 35, s: 2+Math.random()*2.5,
+            color: "#b23b2b", wall: true });
+        }
+      }
+      // ── Capture flag effect ──
+      if (b.attackerWins && b.wallsDestroyed !== undefined) {
+        for (let i = 0; i < 20; i++) {
+          let a = Math.random() * 6.2832;
+          let s = 0.5 + Math.random() * 2;
+          game.fx.push({ x: px + (Math.random()-0.5)*20, y: py + (Math.random()-0.5)*20 - 10,
+            vx: Math.cos(a)*s, vy: -1 - Math.random()*3,
+            life: 40+Math.random()*30, ml: 70, s: 1.5+Math.random()*2,
+            color: "#ffd700", flag: true });
         }
       }
     }
@@ -437,11 +448,12 @@ function handleWS(msg) {
       let win = b.attackerWins ? "⚔ VICTOIRE" : "🛡 DÉFAITE";
       let col = b.attackerWins ? "#2ed573" : "#ff4757";
       let icon = isNaval ? "⛵" : "⚔";
+      let wallInfo = b.wallsDestroyed > 0 ? " 🧱-" + b.wallsDestroyed : "";
       bar.style.background = col; bar.style.color = "#fff";
-      bar.textContent = icon + " " + win + " — " + b.territory + " : ⚔" + b.atkLosses + " 🛡" + b.defLosses;
+      bar.textContent = icon + " " + win + " — " + b.territory + wallInfo + " : ⚔" + b.atkLosses + " 🛡" + b.defLosses;
       bar.style.display = 'block';
       setTimeout(() => { bar.style.opacity = '0';
-        setTimeout(() => { bar.style.display = 'none'; bar.style.opacity = '1'; }, 500); }, 3500);
+        setTimeout(() => { bar.style.display = 'none'; bar.style.opacity = '1'; }, 500); }, 4000);
       let r = document.getElementById('battle-report');
       let aname = game.players[b.attacker]?.username || "?";
       let dname = game.players[b.defender]?.username || "?";
@@ -452,6 +464,7 @@ function handleWS(msg) {
         "<br><span style='color:" + col + "'>" + (b.attackerWins ? aname : dname) + " gagne</span>";
       document.getElementById('br-loss').innerHTML =
         "Pertes : ⚔" + b.atkLosses + " · 🛡" + b.defLosses +
+        (b.wallsDestroyed > 0 ? " · 🧱 " + b.wallsDestroyed + " murs detruits" : "") +
         (b.lwReward ? " · 🏆 +" + b.lwReward : "");
       r.style.display = 'block';
     }
@@ -596,6 +609,55 @@ class Game {
         life: 15 + Math.random() * 25, ml: 40, s: 1 + Math.random() * 2.5, color
       });
     }
+  }
+
+  // ── Voronoi territory polygons ────────────────────────────────
+  computeVoronoi() {
+    let pts = this.territories.filter(t => t.lon != null);
+    if (pts.length < 2) return;
+    // Bounding box around all points
+    let xs = pts.map(t => t._px), ys = pts.map(t => t._py);
+    let minX = Math.min(...xs) - 200, maxX = Math.max(...xs) + 200;
+    let minY = Math.min(...ys) - 200, maxY = Math.max(...ys) + 200;
+    let clipPoly = (poly, mx, my, nx, ny) => {
+      let out = [];
+      for (let i = 0; i < poly.length; i++) {
+        let j = (i + 1) % poly.length;
+        let pi = poly[i], pj = poly[j];
+        let di = (pi.x - mx) * nx + (pi.y - my) * ny;
+        let dj = (pj.x - mx) * nx + (pj.y - my) * ny;
+        if (di <= 0) out.push(pi);
+        if ((di < 0 && dj > 0) || (di > 0 && dj < 0)) {
+          let t = -di / (dj - di);
+          out.push({x: pi.x + t * (pj.x - pi.x), y: pi.y + t * (pj.y - pi.y)});
+        }
+      }
+      return out;
+    };
+    this._voronoi = {};
+    for (let t of pts) {
+      let poly = [{x: minX, y: minY}, {x: maxX, y: minY}, {x: maxX, y: maxY}, {x: minX, y: maxY}];
+      for (let o of pts) {
+        if (o.id === t.id) continue;
+        let mx = (t._px + o._px) / 2, my = (t._py + o._py) / 2;
+        let nx = o._px - t._px, ny = o._py - t._py;
+        poly = clipPoly(poly, mx, my, nx, ny);
+        if (poly.length < 3) break;
+      }
+      if (poly.length >= 3) this._voronoi[t.id] = poly;
+    }
+  }
+
+  // Shared octagon draw helper (for territory dots)
+  _octPath(cx, cy, r) {
+    let p = new Path2D();
+    for (let i = 0; i < 8; i++) {
+      let a = Math.PI * i / 4 + Math.PI / 8;
+      let x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
+      i === 0 ? p.moveTo(x, y) : p.lineTo(x, y);
+    }
+    p.closePath();
+    return p;
   }
 
   projectile(x1, y1, x2, y2, color, ship=false) {
@@ -1203,6 +1265,7 @@ let html = '<h5>💰 Ressources</h5>' +
         let pp = proj(t.lon, t.lat); t._px = pp.x; t._py = pp.y;
       }
     }
+    this.computeVoronoi();
 
     // Explosion effects on captured territories
     for (let t of this.territories) {
@@ -1795,43 +1858,96 @@ let html = '<h5>💰 Ressources</h5>' +
     }
     ctx.textBaseline = "alphabetic";
 
-    // ─── Territoires ───────────────────────────────────────────────
+    // ─── Territoires (Voronoi) ───────────────────────────────────────
     let pList = Object.keys(this.players);
+    let ctx = this.ctx;
+    let selT = this.selId !== null ? this.territories.find(x => x.id === this.selId) : null;
+
+    // 1) Voronoi fill (under territories)
+    if (this._voronoi) {
+      for (let t of this.territories) {
+        let poly = this._voronoi[t.id];
+        if (!poly || poly.length < 3) continue;
+        let pIdx = pList.indexOf(t.owner);
+        let color = t.owner ? COLORS[Math.max(0, pIdx) % COLORS.length] : null;
+        if (!color) continue;
+        ctx.beginPath();
+        ctx.moveTo(poly[0].x, poly[0].y);
+        for (let k = 1; k < poly.length; k++) ctx.lineTo(poly[k].x, poly[k].y);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.globalAlpha = t.id === this.selId ? 0.3 : 0.12;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        // Border
+        ctx.strokeStyle = color;
+        ctx.lineWidth = t.id === this.selId ? 1.5 : 0.5;
+        ctx.globalAlpha = 0.4;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // 2) Territory octagon dots + labels
     for (let t of this.territories) {
       if (t.lon == null) continue;
-      let px = p(t.lon, t.lat);
+      let px = {x: t._px, y: t._py};
       let pIdx = pList.indexOf(t.owner);
       let color = t.owner ? COLORS[Math.max(0, pIdx) % COLORS.length] : "#555";
 
-      let r = t.capital ? 2 : 1.5;
+      let r = t.capital ? 3.5 : 2.5;
+      // Outer glow halo (octagon rings)
       if (t.owner) {
-        this.ctx.shadowColor = "transparent";
-        this.ctx.globalAlpha = 0.1;
-        this.ctx.fillStyle = color;
-        this.ctx.beginPath(); this.ctx.arc(px.x, px.y, r + 3, 0, 6.2832); this.ctx.fill();
-        this.ctx.beginPath(); this.ctx.arc(px.x, px.y, r + 6, 0, 6.2832); this.ctx.fill();
-        this.ctx.globalAlpha = 1;
+        ctx.shadowColor = "transparent";
+        ctx.globalAlpha = 0.08;
+        let path1 = this._octPath(px.x, px.y, r + 5);
+        let path2 = this._octPath(px.x, px.y, r + 9);
+        ctx.fillStyle = color;
+        ctx.fill(path1); ctx.fill(path2);
+        ctx.globalAlpha = 1;
       }
-      this.ctx.shadowColor = color;
-      this.ctx.shadowBlur = 3;
-      this.ctx.fillStyle = "rgba(10,5,8,0.92)";
-      this.ctx.strokeStyle = color;
-      this.ctx.lineWidth = t.owner === this.myId ? 1.5 : 1;
-      this.ctx.beginPath(); this.ctx.arc(px.x, px.y, r, 0, 6.2832); this.ctx.fill(); this.ctx.stroke();
-      this.ctx.shadowBlur = 0;
+      // Main octagon body
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 6;
+      let isMine = t.owner === this.myId;
+      let isSel = t.id === this.selId;
+      let oct = this._octPath(px.x, px.y, isSel ? r + 2 : r);
+      ctx.fillStyle = "rgba(10,5,8,0.92)";
+      ctx.fill(oct);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = isSel ? 2.5 : (isMine ? 1.8 : 1);
+      ctx.stroke(oct);
+      ctx.shadowBlur = 0;
 
-      this.ctx.fillStyle = "#fff"; this.ctx.font = "bold 6px monospace"; this.ctx.textAlign = "center";
-      this.ctx.fillText(t.name, px.x, px.y - r - 4);
+      // Capture animation
+      if (isSel) {
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.3 + 0.3 * Math.sin(Date.now() / 200);
+        ctx.stroke(this._octPath(px.x, px.y, r + 5));
+        ctx.globalAlpha = 1;
+      }
 
-      this.ctx.fillStyle = "#e2a03d"; this.ctx.font = "5px monospace";
-      this.ctx.fillText("🛡" + (t.army || 0), px.x, px.y + r + 5);
+      // Name
+      ctx.fillStyle = "#fff"; ctx.font = "bold 7px monospace"; ctx.textAlign = "center";
+      ctx.fillText(t.name, px.x, px.y - r - 6);
 
-      this.ctx.font = "5px monospace";
-      this.ctx.fillText(t.capital ? "🏛" : t.type === "port" ? "⚓" : t.type === "fort" ? "🏰" : "🏘", px.x, px.y + 1);
+      // Army
+      ctx.fillStyle = t.owner === this.myId ? "#e2a03d" : "#aaa";
+      ctx.font = "6px monospace";
+      ctx.fillText("🛡" + (t.army || 0), px.x, px.y + r + 7);
+
+      // Type icon
+      ctx.font = "6px monospace";
+      ctx.fillText(t.capital ? "🏛" : t.type === "port" ? "⚓" : t.type === "fort" ? "🏰" : "🏘", px.x, px.y + 1);
+
+      // Fort pips
       if (t.owner && t.fortLevel > 0) {
-        this.ctx.fillStyle = "#e2a03d";
+        ctx.fillStyle = "#e2a03d";
         for (let fi = 0; fi < Math.min(t.fortLevel, 5); fi++) {
-          this.ctx.beginPath(); this.ctx.arc(px.x - 3 + fi * 2.5, px.y + r + 10, 1, 0, 6.2832); this.ctx.fill();
+          ctx.beginPath();
+          ctx.arc(px.x - 3 + fi * 2.5, px.y + r + 12, 1.2, 0, 6.2832);
+          ctx.fill();
         }
       }
     }
@@ -1912,6 +2028,27 @@ let html = '<h5>💰 Ressources</h5>' +
         this.ctx.moveTo(pfx.x, pfx.y - 4);
         this.ctx.lineTo(pfx.x + 3, pfx.y + 2);
         this.ctx.lineTo(pfx.x - 3, pfx.y + 2);
+        this.ctx.closePath(); this.ctx.fill();
+      } else if (pfx.wall) {
+        // Wall debris: small square
+        this.ctx.fillStyle = pfx.color;
+        this.ctx.fillRect(pfx.x - 2, pfx.y - 2, 4 + pfx.s * 0.5, 4 + pfx.s * 0.5);
+        this.ctx.strokeStyle = "rgba(0,0,0,0.3)";
+        this.ctx.lineWidth = 0.5;
+        this.ctx.strokeRect(pfx.x - 2, pfx.y - 2, 4 + pfx.s * 0.5, 4 + pfx.s * 0.5);
+      } else if (pfx.flag) {
+        // Capture flag
+        this.ctx.strokeStyle = "#8d3629";
+        this.ctx.lineWidth = 1.5;
+        this.ctx.beginPath();
+        this.ctx.moveTo(pfx.x, pfx.y + 5);
+        this.ctx.lineTo(pfx.x, pfx.y - 8);
+        this.ctx.stroke();
+        this.ctx.fillStyle = pfx.color;
+        this.ctx.beginPath();
+        this.ctx.moveTo(pfx.x + 1, pfx.y - 8);
+        this.ctx.lineTo(pfx.x + 8, pfx.y - 5);
+        this.ctx.lineTo(pfx.x + 1, pfx.y - 2);
         this.ctx.closePath(); this.ctx.fill();
       } else {
         this.ctx.fillStyle = pfx.color;

@@ -541,6 +541,20 @@ class CarthageWarGame:
             dst["army"] = max(1, remaining)
             dst["fortLevel"] = max(0, dst["fortLevel"] - 1)
 
+            # Wall destruction on conquest
+            walls_destroyed = 0
+            if dst.get("interior_grid"):
+                breach_bonus = siege_bonus.get("breach", 0)
+                ig = dst["interior_grid"]
+                for ri in range(len(ig)):
+                    for ci in range(len(ig[ri])):
+                        if ig[ri][ci] and ig[ri][ci].startswith("wall"):
+                            chance = 0.5 + breach_bonus * 0.3
+                            if random.random() < chance:
+                                ig[ri][ci] = None
+                                walls_destroyed += 1
+            result["wallsDestroyed"] = walls_destroyed
+
             # LW Points for victory (base 30 + bonus for fort level + territory value)
             lw_reward = 30 + dst["fortLevel"] * 5 + (10 if dst["capital"] else 0)
             if attacker_id in self.players:

@@ -415,10 +415,7 @@ async def ws_handler(websocket):
                         carthage_war_games[game_id] = CarthageWarGame(game_id)
                     cwg = carthage_war_games[game_id]
                     cwg.add_player(ws_id, username)
-                    await websocket.send(json.dumps({
-                        "action": "carthage_state",
-                        "state": cwg.to_player_state(ws_id),
-                    }))
+                    # Don't send initial state yet — wait for civ choice + ready
                     await _broadcast_carthage(cwg, {
                         "action": "carthage_player_joined",
                         "playerId": ws_id,
@@ -639,7 +636,9 @@ async def _handle_carthage_action(websocket, ws_id: str, msg: dict):
         result = cwg.move_army(ws_id, msg.get("from"), msg.get("to"), msg.get("amount", 0))
 
     elif cmd == "attack":
-        result = cwg.attack(ws_id, msg.get("from"), msg.get("to"))
+        result = cwg.attack(ws_id, msg.get("from"), msg.get("to"),
+                            msg.get("bombard", False), msg.get("ram", False), msg.get("catapult", False),
+                            msg.get("naval", False))
 
     elif cmd == "propose_alliance":
         result = cwg.propose_alliance(ws_id, msg.get("to"))
@@ -653,17 +652,87 @@ async def _handle_carthage_action(websocket, ws_id: str, msg: dict):
     elif cmd == "break_alliance":
         result = cwg.break_alliance(ws_id, msg.get("ally"))
 
+    elif cmd == "choose_character":
+        result = cwg.choose_character(ws_id, msg.get("character"))
+
+    elif cmd == "choose_civilization":
+        result = cwg.choose_civilization(ws_id, msg.get("civilization", "carthage"))
+
+    elif cmd == "mobilize":
+        result = cwg.mobilize(ws_id, msg.get("tid", 0))
+
+    elif cmd == "economy_harvest":
+        p = cwg.players.get(ws_id)
+        if p is None:
+            result = {"status": 404, "error": "Joueur introuvable"}
+        else:
+            p["food"] = p.get("food", 0) + 50
+            cwg.add_log(ws_id, "Moisson organisee dans les champs de Carthage. +50 grain.")
+            result = {"status": 200}
+
+    elif cmd == "economy_ship":
+        p = cwg.players.get(ws_id)
+        if p is None:
+            result = {"status": 404, "error": "Joueur introuvable"}
+        elif p.get("wood", 0) < 50:
+            result = {"status": 400, "error": "Pas assez de bois (besoin: 50)"}
+        else:
+            p["wood"] -= 50
+            p["ships"] = p.get("ships", 0) + 1
+            cwg.add_log(ws_id, "Quinquereme construite dans le chantier naval de Carthage. -50 bois, +1 navire.")
+            result = {"status": 200}
+
+    elif cmd == "economy_convoi":
+        p = cwg.players.get(ws_id)
+        if p is None:
+            result = {"status": 404, "error": "Joueur introuvable"}
+        elif p.get("stone", 0) < 20:
+            result = {"status": 400, "error": "Pas assez de pierre (besoin: 20)"}
+        elif p.get("marble", 0) < 10:
+            result = {"status": 400, "error": "Pas assez de marbre (besoin: 10)"}
+        else:
+            p["stone"] -= 20
+            p["marble"] -= 10
+            p["gold"] = p.get("gold", 0) + 40
+            cwg.add_log(ws_id, "Convoi maritime expedie vers les comptoirs. +40 or.")
+            result = {"status": 200}
+
+    elif cmd == "economy_extract":
+        p = cwg.players.get(ws_id)
+        if p is None:
+            result = {"status": 404, "error": "Joueur introuvable"}
+        else:
+            p["stone"] = p.get("stone", 0) + 30
+            p["marble"] = p.get("marble", 0) + 15
+            cwg.add_log(ws_id, "Extraction dans les carrieres de Carthage. +30 pierre, +15 marbre.")
+            result = {"status": 200}
+
     elif cmd == "fortify":
         result = cwg.fortify(ws_id, msg.get("tid"), msg.get("use_stone", False))
 
     elif cmd == "construct":
-        result = cwg.construct(ws_id, msg.get("tid"), msg.get("building"))
+        result = cwg.construct(ws_id, msg.get("tid"), msg.get("building"), msg.get("slot", -1))
+
+    elif cmd == "upgrade_city":
+        result = cwg.upgrade_city(ws_id, msg.get("tid"))
+
+    elif cmd == "build_interior":
+        result = cwg.build_interior(ws_id, msg.get("tid"), msg.get("building"), msg.get("gx"), msg.get("gy"))
 
     elif cmd == "build_lw":
         result = cwg.build_lw(ws_id, msg.get("item"))
 
+    elif cmd == "market_buy":
+        result = cwg.buy_item(ws_id, msg.get("item_id"))
+
+    elif cmd == "place_item":
+        result = cwg.place_item(ws_id, msg.get("tid"), msg.get("item_type"), msg.get("px", 0.5), msg.get("py", 0.5))
+
     elif cmd == "recruit":
         result = cwg.recruit(ws_id, msg.get("tid"), msg.get("amount", 5))
+
+    elif cmd == "distribute":
+        result = cwg.distribute(ws_id, msg.get("tid"), msg.get("population", 0), msg.get("soldiers", 0))
 
     elif cmd == "ready":
         result = cwg.set_ready(ws_id)
@@ -674,6 +743,12 @@ async def _handle_carthage_action(websocket, ws_id: str, msg: dict):
     elif cmd == "chat":
         cwg.add_log(ws_id, msg.get("text", ""))
         result = {"status": 200}
+
+    elif cmd == "found_city":
+        result = cwg.found_city(ws_id, msg.get("lon"), msg.get("lat"), msg.get("name"))
+
+    elif cmd == "destroy_city":
+        result = cwg.destroy_city(ws_id, msg.get("tid"))
 
     else:
         result = {"error": f"Commande inconnue: {cmd}", "status": 400}
@@ -696,7 +771,7 @@ async def _handle_carthage_action(websocket, ws_id: str, msg: dict):
             _add_carthage_log(cwg, "Systeme", f"Bataille a {battle['territory']} !")
 
     if cmd in ("move_army", "fortify", "construct", "build_lw", "recruit", "ready", "unready", "propose_alliance",
-               "accept_alliance", "reject_alliance", "break_alliance", "chat"):
+               "accept_alliance", "reject_alliance", "break_alliance", "chat", "market_buy", "place_item"):
         pass
 
     # Broadcast personalized state to each player
