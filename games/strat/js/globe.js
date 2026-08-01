@@ -712,40 +712,57 @@ class Globe3D {
     const p2 = b.pos.clone().normalize().multiplyScalar(RADIUS * 0.985)
     const color = attackerWins ? 0xffd700 : 0xff5522
 
-    const lineGeo = new THREE.BufferGeometry()
     const arcPts = []
-    const steps = 24
+    const steps = 28
     for (let i = 0; i <= steps; i++) {
       const u = i / steps
       const base = new THREE.Vector3().lerpVectors(p1, p2, u)
-      const lift = base.clone().normalize().multiplyScalar(RADIUS * 0.12 * Math.sin(u * Math.PI))
+      const lift = base.clone().normalize().multiplyScalar(RADIUS * 0.14 * Math.sin(u * Math.PI))
       arcPts.push(base.add(lift))
     }
-    lineGeo.setFromPoints(arcPts)
-    const lineMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9 })
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(arcPts)
+    const lineMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.95 })
     const line = new THREE.Line(lineGeo, lineMat)
     line.renderOrder = 800
     this.dotGroup.add(line)
 
-    const dotGeo = new THREE.SphereGeometry(0.08, 10, 8)
+    // Trailing particles following the projectile
+    const trailN = 24
+    const trailGeo = new THREE.BufferGeometry()
+    trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(trailN * 3), 3))
+    const trailMat = new THREE.PointsMaterial({ color, size: 0.11, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
+    const trail = new THREE.Points(trailGeo, trailMat)
+    trail.renderOrder = 850
+    this.dotGroup.add(trail)
+
+    const dotGeo = new THREE.SphereGeometry(0.13, 10, 8)
     const dotMat = new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false })
     const dot = new THREE.Mesh(dotGeo, dotMat)
-    dot.renderOrder = 850
+    dot.renderOrder = 860
     this.dotGroup.add(dot)
 
     const start = performance.now()
-    const duration = 700
+    const duration = 650
     const animId = setInterval(() => {
       const u = Math.min(1, (performance.now() - start) / duration)
       const idx = Math.min(steps, Math.floor(u * steps))
       dot.position.copy(arcPts[idx])
+      const tp = trail.geometry.attributes.position.array
+      for (let i = 0; i < trailN; i++) {
+        const back = Math.max(0, idx - i - 1)
+        const p = arcPts[back]
+        tp[i * 3] = p.x; tp[i * 3 + 1] = p.y; tp[i * 3 + 2] = p.z
+      }
+      trail.geometry.attributes.position.needsUpdate = true
+      trailMat.opacity = Math.max(0, 0.9 - u * 0.4)
       if (u >= 1) {
         clearInterval(animId)
-        this.dotGroup.remove(line)
-        this.dotGroup.remove(dot)
+        this.dotGroup.remove(line); this.dotGroup.remove(dot); this.dotGroup.remove(trail)
         line.geometry.dispose(); lineMat.dispose()
         dot.geometry.dispose(); dotMat.dispose()
-        this._impactBurst(b.pos.clone().normalize().multiplyScalar(RADIUS * 0.985), attackerWins)
+        trail.geometry.dispose(); trailMat.dispose()
+        const impact = b.pos.clone().normalize().multiplyScalar(RADIUS * 0.985)
+        this._impactBurst(impact, attackerWins)
         this._captureFlash(b.pos.clone().normalize().multiplyScalar(RADIUS * 1.0), attackerWins)
       }
     }, 16)
@@ -795,7 +812,14 @@ class Globe3D {
 
   _impactBurst(pos, attackerWins) {
     const color = attackerWins ? 0xffd700 : 0xff5522
-    const count = 30
+    // Bright expanding flash sphere
+    const flashGeo = new THREE.SphereGeometry(0.09, 12, 10)
+    const flashMat = new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })
+    const flash = new THREE.Mesh(flashGeo, flashMat)
+    flash.renderOrder = 920
+    flash.position.copy(pos)
+    this.dotGroup.add(flash)
+    const count = 70
     const geo = new THREE.BufferGeometry()
     const positions = new Float32Array(count * 3)
     const colors = new Float32Array(count * 3)
@@ -805,11 +829,11 @@ class Globe3D {
       const c = new THREE.Color(color)
       colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b
       const dir = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize()
-      vels.push(dir.multiplyScalar(0.15 + Math.random() * 0.15))
+      vels.push(dir.multiplyScalar(0.18 + Math.random() * 0.18))
     }
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    const mat = new THREE.PointsMaterial({ size: 0.25, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
+    const mat = new THREE.PointsMaterial({ size: 0.4, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
     const points = new THREE.Points(geo, mat)
     this.dotGroup.add(points)
     const start = performance.now()
@@ -819,13 +843,17 @@ class Globe3D {
       const arr = points.geometry.attributes.position.array
       for (let i = 0; i < count; i++) {
         arr[i * 3] += vels[i].x; arr[i * 3 + 1] += vels[i].y; arr[i * 3 + 2] += vels[i].z
+        vels[i].y -= 0.006
       }
       points.geometry.attributes.position.needsUpdate = true
       mat.opacity = 1 - progress
+      flash.scale.setScalar(1 + progress * 6)
+      flash.material.opacity = Math.max(0, 1 - progress * 2)
       if (progress >= 1) {
         clearInterval(animId)
-        this.dotGroup.remove(points)
+        this.dotGroup.remove(points); this.dotGroup.remove(flash)
         points.geometry.dispose(); mat.dispose()
+        flash.geometry.dispose(); flash.material.dispose()
       }
     }, 16)
   }
@@ -833,24 +861,29 @@ class Globe3D {
   _captureFlash(pos, attackerWins, maxOpacity = 0.8) {
     const color = attackerWins ? 0xffd700 : 0xff5533
     const ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.2, 0.35, 32),
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false })
+      new THREE.RingGeometry(0.2, 0.4, 32),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })
     )
     ring.renderOrder = 900
     ring.position.copy(pos)
     ring.lookAt(new THREE.Vector3(0, 0, 0))
     this.dotGroup.add(ring)
+    const ring2 = ring.clone()
+    ring2.renderOrder = 901
+    this.dotGroup.add(ring2)
     const start = performance.now()
     const duration = 900
     const animId = setInterval(() => {
       const u = Math.min(1, (performance.now() - start) / duration)
-      const s = 1 + u * 5
-      ring.scale.setScalar(s)
+      ring.scale.setScalar(1 + u * 5)
       ring.material.opacity = maxOpacity * (1 - u)
+      ring2.scale.setScalar(1 + (Math.max(0, u - 0.15)) * 4)
+      ring2.material.opacity = maxOpacity * 0.7 * Math.max(0, 1 - u * 1.4)
       if (u >= 1) {
         clearInterval(animId)
-        this.dotGroup.remove(ring)
+        this.dotGroup.remove(ring); this.dotGroup.remove(ring2)
         ring.geometry.dispose(); ring.material.dispose()
+        ring2.geometry.dispose(); ring2.material.dispose()
       }
     }, 16)
   }
