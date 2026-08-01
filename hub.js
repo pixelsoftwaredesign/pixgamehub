@@ -1030,6 +1030,46 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.textAlign = 'left';
     }
 
+    function drawStratPreview(c) {
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#050510'; ctx.fillRect(0, 0, 480, 200);
+
+        // Dotted globe
+        const cx = 200, cy = 100, R = 62;
+        for (let y = 0; y < 2 * R; y += 6) {
+            for (let x = 0; x < 2 * R; x += 6) {
+                const dx = x - R, dy = y - R;
+                if (dx * dx + dy * dy < R * R) {
+                    const depth = Math.sqrt(1 - (dx * dx + dy * dy) / (R * R));
+                    ctx.fillStyle = `rgba(${60 + depth * 90},${120 + depth * 110},${220 + depth * 35},${0.35 + depth * 0.6})`;
+                    ctx.beginPath(); ctx.arc(cx + dx, cy + dy, 1.5, 0, Math.PI * 2); ctx.fill();
+                }
+            }
+        }
+
+        // Empire-colored dots on the sphere (world map feel)
+        const spots = [[0.62,0.30,'#d4a017'],[0.45,0.48,'#3a9df5'],[0.72,0.55,'#c84b31'],[0.55,0.62,'#2ecc71'],[0.38,0.28,'#9b59b6'],[0.66,0.42,'#e74c3c']];
+        spots.forEach(([sx, sy, col], i) => {
+            const a = sx * Math.PI * 2, e = (sy - 0.5) * Math.PI;
+            const px = cx + R * Math.cos(e) * Math.cos(a + frame * 0.008) * 0.9;
+            const py = cy + R * Math.sin(e) * 0.9;
+            ctx.fillStyle = col;
+            ctx.beginPath(); ctx.arc(px, py, 2.5 + Math.sin(frame * 0.05 + i) * 0.5, 0, Math.PI * 2); ctx.fill();
+        });
+
+        // Title glow
+        ctx.fillStyle = '#d4a017'; ctx.font = 'bold 20px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('STRAT', 320, 80);
+        ctx.fillStyle = '#8a8aaa'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('18 empires · 123 territoires', 320, 102);
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.beginPath(); ctx.arc(320, 140, 22 + Math.sin(frame * 0.04) * 3, 0, Math.PI * 2); ctx.fill();
+
+        // Stars
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        for (let i = 0; i < 12; i++) ctx.fillRect((i * 37 + 15) % 480, (i * 23 + 8) % 60, 1.2, 1.2);
+    }
+
     function animate() {
         frame++;
         const canvases = document.querySelectorAll('.preview-canvas');
@@ -1047,6 +1087,7 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (game === 'carthage') drawCarthagePreview(c);
             else if (game === 'carthage_platformer') drawCarthagePlatformerPreview(c);
             else if (game === 'engine') drawEnginePreview(c);
+            else if (game === 'strat') drawStratPreview(c);
         });
         requestAnimationFrame(animate);
     }
