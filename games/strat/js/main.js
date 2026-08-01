@@ -172,8 +172,7 @@ function handleTerritoryClick(id) {
     showEnemyBar(id)
   } else if (selTid !== null) {
     const fromT = state.territories[selTid]
-    const from = TERRITORIES.find(x => x.id === selTid)
-    if (fromT?.owner === state.you && from?.adj?.includes(id)) {
+    if (fromT?.owner === state.you) {
       if (td?.owner && isAlly(td.owner)) {
         send('move', {tid: selTid, to: id, amount: 50})
         if (window.GlobeAPI) GlobeAPI.spawnMoveAnimation(selTid, id)
@@ -323,10 +322,14 @@ function showEnemyBar(id) {
   if (!bar) return
   const t = TERRITORIES.find(x => x.id === id)
   const td = state.territories[id]
-  const sources = (t?.adj || [])
-    .map(x => TERRITORIES.find(y => y.id === x))
-    .filter(x => x && state.territories[x.id]?.owner === state.you)
-    .map(x => x.id)
+  const sources = []
+  for (const sid in state.territories) {
+    const st = state.territories[sid]
+    if (st?.owner === state.you && Number(sid) !== id) {
+      sources.push({id: Number(sid), name: TERRITORIES.find(y => y.id === Number(sid))?.name || sid, army: st.army || 0})
+    }
+  }
+  sources.sort((a, b) => b.army - a.army)
 
   bar.innerHTML = ''
   const info = document.createElement('span')
@@ -337,7 +340,7 @@ function showEnemyBar(id) {
   if (!sources.length) {
     const hint = document.createElement('span')
     hint.className = 'terr-bar-hint'
-    hint.textContent = 'Aucun de vos territoires n\'est adjacent — avancez d\'abord'
+    hint.textContent = 'Vous ne contrôlez aucun territoire'
     bar.appendChild(hint)
     bar.appendChild(tbBtn('✕', 'tb-close', () => hideTerritoryBar()))
     bar.style.display = 'flex'
@@ -348,21 +351,37 @@ function showEnemyBar(id) {
   hint.className = 'terr-bar-hint'
   hint.textContent = '⚔️ Attaquer depuis :'
   bar.appendChild(hint)
-  for (const sid of sources) {
-    const st = TERRITORIES.find(x => x.id === sid)
-    const pv = attackPreview(sid, id)
-    const chance = pv ? pv.chance : 0
-    const pct = chance >= 60 ? 'pct-high' : (chance >= 35 ? 'pct-mid' : 'pct-low')
-    const b = tbBtn(`⚔️ ${st.name} (${pv ? `⚔️${pv.atk} vs ⚔️${pv.def} — ` : ''}${chance}%)`, 'tb-btn tb-attack', () => {
-      send('attack', {tid: sid, to: id})
-      if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(sid, id, chance >= 50)
-      hideTerritoryBar()
-      selTid = null
-      GlobeAPI.clearSelection()
-    })
-    b.classList.add(pct)
-    bar.appendChild(b)
+  const sel = document.createElement('select')
+  sel.className = 'tb-dest'
+  for (const s of sources) {
+    const o = document.createElement('option')
+    o.value = s.id
+    o.textContent = `${s.name} (⚔️${s.army})`
+    sel.appendChild(o)
   }
+  bar.appendChild(sel)
+  const pvEl = document.createElement('span')
+  pvEl.className = 'terr-bar-info'
+  bar.appendChild(pvEl)
+  const attackBtn = tbBtn('⚔️ Attaquer', 'tb-btn tb-attack', () => {
+    const sid = Number(sel.value)
+    const pv = attackPreview(sid, id)
+    send('attack', {tid: sid, to: id})
+    if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(sid, id, pv ? pv.chance >= 50 : false)
+    hideTerritoryBar()
+    selTid = null
+    GlobeAPI.clearSelection()
+  })
+  const updatePv = () => {
+    const sid = Number(sel.value)
+    const pv = attackPreview(sid, id)
+    const st = state.territories[sid]
+    pvEl.textContent = pv ? `⚔️${pv.atk} vs ⚔️${pv.def} — ${pv.chance}% (${st?.army||0} soldats)` : ''
+    attackBtn.classList.toggle('disabled', !pv || pv.atk <= 0)
+  }
+  sel.onchange = updatePv
+  bar.appendChild(attackBtn)
+  updatePv()
   bar.appendChild(tbBtn('✕', 'tb-close', () => hideTerritoryBar()))
   bar.style.display = 'flex'
 }

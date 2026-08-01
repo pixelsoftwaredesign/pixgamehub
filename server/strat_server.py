@@ -203,8 +203,8 @@ class StratGame:
         if cmd == 'attack':
             to_tid = data.get('to')
             to_t = self.territories.get(to_tid)
-            if not to_t or to_tid not in t['adj']:
-                return {'error': 'Territoire non adjacent'}
+            if not to_t:
+                return {'error': 'Territoire inconnu'}
             if to_t['owner'] and self._empire_of(to_t['owner']) == my_empire:
                 return {'error': 'Territoire allié (même empire)'}
             if t['army'] < 10:
