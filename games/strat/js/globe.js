@@ -524,13 +524,18 @@ class Globe3D {
       }
     })
 
-    // Double-click → fly & select
+    // Double-click → fly & select (or attack an enemy directly)
     el.addEventListener('dblclick', e => {
       const hit = this._hitTest(e.clientX, e.clientY)
-      if (hit !== null) {
-        this.flyToTerritory(hit)
-        this.selectTerritory(hit)
+      if (hit === null) return
+      const td = this.state?.territories ? this.state.territories[hit] : null
+      const enemy = td && td.owner && td.owner !== this.state.you && !isAlly(this.state, td.owner)
+      if (enemy && window.handleEnemyDoubleClick) {
+        window.handleEnemyDoubleClick(hit)
+        return
       }
+      this.flyToTerritory(hit)
+      this.selectTerritory(hit)
     })
   }
 

@@ -196,6 +196,32 @@ function handleOpenCity(id) {
 }
 window.handleOpenCity = handleOpenCity
 
+function handleEnemyDoubleClick(id) {
+  const td = state.territories[id]
+  if (!td || !td.owner || isAlly(td.owner)) return
+  let fromId = null
+  if (selTid !== null && state.territories[selTid]?.owner === state.you) {
+    fromId = selTid
+  } else {
+    let best = -1
+    for (const sid in state.territories) {
+      const st = state.territories[sid]
+      if (st?.owner === state.you && (st.army || 0) > best) {
+        best = st.army || 0
+        fromId = Number(sid)
+      }
+    }
+  }
+  if (fromId === null) return
+  const pv = attackPreview(fromId, id)
+  send('attack', {tid: fromId, to: id})
+  if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(fromId, id, pv ? pv.chance >= 50 : false)
+  hideTerritoryBar()
+  selTid = null
+  GlobeAPI.clearSelection()
+}
+window.handleEnemyDoubleClick = handleEnemyDoubleClick
+
 function armyByOwner() {
   const m = {}
   for (const id in state.territories) {
