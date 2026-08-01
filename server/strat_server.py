@@ -365,7 +365,29 @@ def login(user, pwd):
     return r and r[0] == hashlib.sha256(pwd.encode()).hexdigest()
 
 # ─── HTTP handler ──────────────────────────────────────────────────
-MIME_TYPES = {'.js':'application/javascript', '.mjs':'application/javascript', '.css':'text/css', '.json':'application/json', '.svg':'image/svg+xml'}
+MIME_TYPES = {'.js':'application/javascript', '.mjs':'application/javascript', '.css':'text/css', '.json':'application/json',
+              '.svg':'image/svg+xml', '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg',
+              '.ico':'image/x-icon', '.webp':'image/webp', '.txt':'text/plain'}
+
+def _static_response(path):
+    """Serve a static file from ROOT. Returns (status, content_type, body)."""
+    clean = urlparse(path).path
+    if clean.startswith('/'):
+        clean = clean[1:]
+    if not clean:
+        clean = 'index.html'
+    fp = (ROOT / clean).resolve()
+    if fp.is_dir():
+        fp = fp / 'index.html'
+    if not str(fp).startswith(str(ROOT)):
+        return 403, 'text/plain', b'Forbidden'
+    if not fp.is_file():
+        return 404, 'text/plain; charset=utf-8', b'Not Found'
+    body = fp.read_bytes()
+    ctype = MIME_TYPES.get(fp.suffix, 'application/octet-stream')
+    if fp.suffix == '.html':
+        ctype = 'text/html; charset=utf-8'
+    return 200, ctype, body
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
@@ -453,7 +475,7 @@ async def ws_handler(conn):
 
 async def main():
     init_db()
-    mode = os.environ.get('MODE', 'both')   # http | ws | both
+    mode = os.environ.get('MODE') or ('single' if os.environ.get('PORT') else 'both')
     port_ws = int(os.environ.get('PORT_WS', os.environ.get('PORT', 8081)))
 
     if mode in ('both', 'http'):
@@ -465,6 +487,22 @@ async def main():
         if mode == 'http':
             await asyncio.Future()
             return
+
+    if mode == 'single':
+        async def process_request(connection, request):
+            if request.headers.get('Upgrade', '').lower() != 'websocket':
+                status, ctype, body = _static_response(request.path)
+                reason = {200: 'OK', 404: 'Not Found', 403: 'Forbidden'}.get(status, 'OK')
+                headers = Headers({
+                    'Content-Type': ctype,
+                    'Content-Length': str(len(body)),
+                    'Access-Control-Allow-Origin': '*',
+                })
+                return Response(status, reason, headers, body)
+            return None
+        print(f'StratServer: HTTP+WS unified on :{PORT_HTTP}')
+        async with serve(ws_handler, '0.0.0.0', PORT_HTTP, process_request=process_request):
+            await asyncio.Future()
 
     if mode in ('both', 'ws'):
         async def process_request(connection, request):

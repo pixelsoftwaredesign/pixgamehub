@@ -69,7 +69,7 @@
 }
 </script>
 <script src="js/data.js"></script>
-<script>window.WS_URL = "https://strat-ws.onrender.com";</script>
+<script>window.WS_URL = location.hostname === 'strat-http.onrender.com' ? "https://strat-ws.onrender.com" : null;</script>
 <script type="module" src="js/globe.js"></script>
 <script defer src="js/main.js"></script>
 </body>
