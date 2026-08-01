@@ -556,7 +556,7 @@ function renderCityCanvas(t) {
         icon = {house:'🏠',farm:'🌾',wall:'🧱',barracks:'⚔️',market:'💰',temple:'☥',port:'⚓'}[cell]||'⬜'
       }
       ctx.fillStyle = col
-      let pad = 2, x=cx-T/2+pad, y=cy-T/2+pad, w=T-pad*2, h=T-pad*2, r=4
+      let pad = 2, x=cx-T/2+pad, y=cy-T/2+pad, w=T-pad*2, h=T-pad*2, r=2
       ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r)
       ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h)
       ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r)
