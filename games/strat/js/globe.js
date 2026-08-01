@@ -377,7 +377,7 @@ class Globe3D {
       const owner = td ? td.owner : null
       const empHex = empireHex(state, owner)
       const color = empHex ? new THREE.Color(empHex) : new THREE.Color(0x222233)
-      const mesh = createVoronoiMesh(t, color, owner ? 0.9 : 0.08)
+      const mesh = createVoronoiMesh(t, color, owner ? 0.32 : 0.05)
       if (mesh) {
         mesh.renderOrder = -1
         mesh.userData.territoryId = t.id
@@ -564,7 +564,7 @@ class Globe3D {
 
       // Glow colored by owner (colored light)
       t._glow.material.color.copy(color)
-      t._glow.material.opacity = owner ? 0.4 : 0.18
+      t._glow.material.opacity = owner ? 0.22 : 0.1
 
       // Visible city point, colored by owner
       t._vdot.material.color.copy(owner ? color.clone() : new THREE.Color(0xffffff))
@@ -572,7 +572,7 @@ class Globe3D {
       // Transparent circle colored by owner — attached to the map, only when owned
       t._circle.visible = !!owner
       t._circle.material.color.copy(color)
-      t._circle.material.opacity = owner ? 0.5 : 0
+      t._circle.material.opacity = owner ? 0.3 : 0
 
       // City name glued on the ground
       const canvas = document.createElement('canvas')
@@ -619,12 +619,12 @@ class Globe3D {
       const isSel = t.id === id
       const isAdj = t.adj.includes(id)
       if (isSel) {
-        t._glow.material.opacity = 0.7
+        t._glow.material.opacity = 0.5
         t._glow.material.color.set(0xffd700)
         t._vdot.material.color.set(0xffd700)
         t._vdot.scale.setScalar(1.8)
         t._circle.visible = true
-        t._circle.material.opacity = 0.8
+        t._circle.material.opacity = 0.5
         t._circle.material.color.set(0xffd700)
         t._circle.scale.setScalar(1.25)
       } else {
@@ -639,11 +639,11 @@ class Globe3D {
           const aOwner = this.state?.territories ? this.state.territories[t.id]?.owner : null
           const aColor = aOwner && isAlly(this.state, aOwner) ? 0x2ecc71 : 0xff4444
           t._glow.material.color.set(aColor)
-          t._glow.material.opacity = 0.55
+          t._glow.material.opacity = 0.35
           t._vdot.material.color.set(aColor)
           t._vdot.scale.setScalar(1.4)
           t._circle.visible = true
-          t._circle.material.opacity = 0.7
+          t._circle.material.opacity = 0.45
         } else {
           t._glow.material.color.copy(color)
           t._glow.material.opacity = owner ? 0.4 : 0.18
