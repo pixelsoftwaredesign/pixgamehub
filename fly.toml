@@ -1,0 +1,34 @@
+app = "strat-globe-game"
+primary_region = "cdg"
+
+[build]
+  dockerfile = "Dockerfile"
+
+min_machines_running = 1
+max_machines_running = 1
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 1000
+    soft_limit = 500
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+  [[services.http_checks]]
+    interval = "10s"
+    timeout = "2s"
+    grace_period = "5s"
+    method = "GET"
+    path = "/"
+
+[[services]]
+  internal_port = 8081
+  protocol = "tcp"
+  [[services.ports]]
+    port = 8081

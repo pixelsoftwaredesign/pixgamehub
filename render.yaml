@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: strat-http
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: MODE
+        value: http
+
+  - type: web
+    name: strat-ws
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: MODE
+        value: ws
