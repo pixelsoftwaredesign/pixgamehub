@@ -13,6 +13,7 @@ from websockets.datastructures import Headers
 
 PORT_HTTP = int(os.environ.get("PORT", 8080))
 PORT_WS = int(os.environ.get("PORT_WS", 8081))
+_WS_INTERNAL_PORT = 8081
 ROOT = Path(__file__).resolve().parent.parent
 
 # ─── Territory data (world map — single source: server/worldmap.py) ──────
@@ -389,6 +390,138 @@ def _static_response(path):
         ctype = 'text/html; charset=utf-8'
     return 200, ctype, body
 
+# ─── Unified HTTP+WS server (single port) ─────────────────────────
+async def _read_request(reader):
+    """Read an HTTP request head + body. Returns (request_line, header_lines, body) or None."""
+    head = b''
+    while b'\r\n\r\n' not in head:
+        chunk = await reader.read(4096)
+        if not chunk:
+            return None
+        head += chunk
+        if len(head) > 65536:
+            return None
+    head_bytes, _, rest = head.partition(b'\r\n\r\n')
+    lines = head_bytes.split(b'\r\n')
+    if not lines or not lines[0]:
+        return None
+    request_line = lines[0].decode('latin-1', 'replace')
+    header_lines = [l.decode('latin-1', 'replace') for l in lines[1:]]
+    clen = 0
+    for l in header_lines:
+        if l.lower().startswith('content-length:'):
+            try:
+                clen = int(l.split(':', 1)[1].strip())
+            except Exception:
+                clen = 0
+    body = rest
+    while len(body) < clen:
+        chunk = await reader.read(clen - len(body))
+        if not chunk:
+            break
+        body += chunk
+    return request_line, header_lines, body
+
+async def _http_respond(writer, status, ctype, body_bytes):
+    reasons = {200: 'OK', 400: 'Bad Request', 403: 'Forbidden', 404: 'Not Found',
+               500: 'Internal Server Error'}
+    reason = reasons.get(status, 'OK')
+    head = (f'HTTP/1.1 {status} {reason}\r\n'
+            f'Content-Type: {ctype}\r\n'
+            f'Content-Length: {len(body_bytes)}\r\n'
+            f'Access-Control-Allow-Origin: *\r\n'
+            f'Connection: close\r\n\r\n')
+    writer.write(head.encode('latin-1') + body_bytes)
+    await writer.drain()
+
+async def _pipe_forever(reader, writer):
+    try:
+        while True:
+            data = await reader.read(65536)
+            if not data:
+                break
+            writer.write(data)
+            await writer.drain()
+    except Exception:
+        pass
+    finally:
+        try:
+            writer.close()
+        except Exception:
+            pass
+
+async def _handle_unified(reader, writer):
+    try:
+        req = await _read_request(reader)
+        if req is None:
+            return
+        request_line, header_lines, body = req
+        parts = request_line.split(' ')
+        if len(parts) < 3:
+            return
+        method, path = parts[0], parts[1]
+        headers = {}
+        for l in header_lines:
+            if ':' in l:
+                k, v = l.split(':', 1)
+                headers[k.strip().lower()] = v.strip()
+
+        if headers.get('upgrade', '').lower() == 'websocket':
+            # Proxy the raw handshake to the internal WebSocket server
+            raw = request_line.encode('latin-1') + b'\r\n'
+            for l in header_lines:
+                raw += l.encode('latin-1') + b'\r\n'
+            raw += b'\r\n' + body
+            r2, w2 = await asyncio.open_connection('127.0.0.1', _WS_INTERNAL_PORT)
+            w2.write(raw)
+            await w2.drain()
+            await asyncio.gather(_pipe_forever(reader, w2), _pipe_forever(r2, writer))
+            return
+
+        clean = urlparse(path).path
+        if method == 'POST':
+            try:
+                data = json.loads(body.decode('utf-8')) if body else {}
+            except Exception:
+                data = {}
+            if clean == '/api/register':
+                try:
+                    ok = register(data.get('username', ''), data.get('password', ''))
+                    await _http_respond(writer, 200, 'application/json', json.dumps(
+                        {'ok': ok, 'error': '' if ok else 'Utilisateur existe deja'}).encode())
+                except Exception as e:
+                    await _http_respond(writer, 400, 'application/json', json.dumps(
+                        {'ok': False, 'error': 'Requete invalide'}).encode())
+            elif clean == '/api/login':
+                try:
+                    if login(data.get('username', ''), data.get('password', '')):
+                        tok = secrets.token_hex(16)
+                        await _http_respond(writer, 200, 'application/json', json.dumps(
+                            {'ok': True, 'token': tok, 'username': data.get('username', '')}).encode())
+                    else:
+                        await _http_respond(writer, 200, 'application/json', json.dumps(
+                            {'ok': False, 'error': 'Identifiants incorrects'}).encode())
+                except Exception:
+                    await _http_respond(writer, 400, 'application/json', json.dumps(
+                        {'ok': False, 'error': 'Requete invalide'}).encode())
+            else:
+                await _http_respond(writer, 404, 'application/json', b'{"error":"not found"}')
+            return
+
+        status, ctype, body_bytes = _static_response(path)
+        await _http_respond(writer, status, ctype, body_bytes)
+    except Exception as e:
+        try:
+            await _http_respond(writer, 500, 'text/plain', str(e).encode())
+        except Exception:
+            pass
+    finally:
+        try:
+            writer.close()
+        except Exception:
+            pass
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=str(ROOT), **kw)
@@ -489,20 +622,16 @@ async def main():
             return
 
     if mode == 'single':
-        async def process_request(connection, request):
-            if request.headers.get('Upgrade', '').lower() != 'websocket':
-                status, ctype, body = _static_response(request.path)
-                reason = {200: 'OK', 404: 'Not Found', 403: 'Forbidden'}.get(status, 'OK')
-                headers = Headers({
-                    'Content-Type': ctype,
-                    'Content-Length': str(len(body)),
-                    'Access-Control-Allow-Origin': '*',
-                })
-                return Response(status, reason, headers, body)
-            return None
-        print(f'StratServer: HTTP+WS unified on :{PORT_HTTP}')
-        async with serve(ws_handler, '0.0.0.0', PORT_HTTP, process_request=process_request):
-            await asyncio.Future()
+        global _WS_INTERNAL_PORT
+        _WS_INTERNAL_PORT = port_ws if port_ws != PORT_HTTP else PORT_HTTP + 1
+        print(f'StratServer: HTTP+WS unified on :{PORT_HTTP} (WS proxy -> :{_WS_INTERNAL_PORT})')
+
+        async def serve_unified():
+            async with serve(ws_handler, '127.0.0.1', _WS_INTERNAL_PORT):
+                server = await asyncio.start_server(_handle_unified, '0.0.0.0', PORT_HTTP)
+                async with server:
+                    await server.serve_forever()
+        await serve_unified()
 
     if mode in ('both', 'ws'):
         async def process_request(connection, request):
