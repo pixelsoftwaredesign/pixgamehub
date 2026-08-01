@@ -544,13 +544,13 @@ function renderCityCanvas(t) {
   ctx.fillStyle = '#08060a'
   ctx.fillRect(0,0,cityCanvas.width,cityCanvas.height)
 
-  for (let r=0; r<GS; r++) {
+  for (let row=0; row<GS; row++) {
     for (let c=0; c<GS; c++) {
-      let cx = P + c*T + T/2, cy = P + r*T + T/2
-      let cell = grid[r][c]
+      let cx = P + c*T + T/2, cy = P + row*T + T/2
+      let cell = grid[row][c]
       let col = '#12100e'
       let icon = ''
-      if (cell === null) { col = '#0e0a0c'; if (r===0||r===GS-1||c===0||c===GS-1) col='#1a1210' }
+      if (cell === null) { col = '#0e0a0c'; if (row===0||row===GS-1||c===0||c===GS-1) col='#1a1210' }
       else {
         col = {house:'#2a1a12',farm:'#1a2a12',wall:'#3a1a12',barracks:'#2a1210',market:'#2a2a10',temple:'#1a102a',port:'#101a2a'}[cell]||'#1a1a1a'
         icon = {house:'🏠',farm:'🌾',wall:'🧱',barracks:'⚔️',market:'💰',temple:'☥',port:'⚓'}[cell]||'⬜'
