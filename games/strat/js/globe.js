@@ -572,7 +572,7 @@ class Globe3D {
       // Transparent circle colored by owner — attached to the map, only when owned
       t._circle.visible = !!owner
       t._circle.material.color.copy(color)
-      t._circle.material.opacity = owner ? 0.3 : 0
+      t._circle.material.opacity = owner ? 0.5 : 0
 
       // City name glued on the ground
       const canvas = document.createElement('canvas')
