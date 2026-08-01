@@ -432,8 +432,8 @@ class Globe3D {
       this.dotGroup.add(mesh)
 
       // Visible point marking the exact city position
-      const vdotGeo = new THREE.SphereGeometry(isCap ? 0.16 : 0.12, 14, 10)
-      const vdotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: true, depthWrite: false })
+      const vdotGeo = new THREE.SphereGeometry(isCap ? 0.11 : 0.07, 14, 10)
+      const vdotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: true, depthWrite: false, transparent: true, opacity: 0.4 })
       const vdot = new THREE.Mesh(vdotGeo, vdotMat)
       vdot.renderOrder = 90
       vdot.position.copy(up.clone().multiplyScalar(RADIUS * 0.985))
