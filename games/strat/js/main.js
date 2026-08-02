@@ -139,17 +139,74 @@ function handleBattle(b) {
   if (!b) return
   if (window.GlobeAPI) {
     GlobeAPI.spawnBattleParticles(b.territory, b.attackerWins)
-    if (b.fromTid !== undefined && b.toTid !== undefined)
+    if (b.fromTid !== undefined && b.toTid !== undefined) {
       GlobeAPI.spawnAttackProjectile(b.fromTid, b.toTid, b.attackerWins)
+      GlobeAPI.flashTerritory(b.toTid, b.attackerWins ? 0xffffff : 0xff2222)
+    }
   }
+  const attacker = (state.players && state.players[b.attacker]) || {}
   const defender = (state.players && b.defender && state.players[b.defender]) || {}
-  const winnerTxt = b.attackerWins ? 'Victoire !' : 'Échec'
-  const who = (b.attacker === state.you) ? 'Vous' : (state.players[b.attacker]?.name || 'Ennemi')
-  const vs = b.defender === state.you ? 'vous' : (defender.name || 'ennemi')
+  const aName = b.attacker === state.you ? 'Vous' : (attacker.name || 'Ennemi')
+  const dName = b.defender === state.you ? 'vous' : (defender.name || 'ennemi')
+  const aCol = empireColorOf(b.attacker)
+  const dCol = b.defender ? empireColorOf(b.defender) : '#888'
+  const winTxt = b.attackerWins ? 'conquis' : 'attaqué'
+  const involved = b.attacker === state.you || b.defender === state.you
+
+  logWar(
+    `<span class="war-att" style="color:${aCol}">${aName}</span>` +
+    (b.attackerWins ? ' 🏆 ' : ' 💀 ') +
+    `<span class="war-def" style="color:${dCol}">${dName}</span> ` +
+    `<span class="${b.attackerWins ? 'war-win' : 'war-lose'}">${winTxt}</span> ` +
+    `<span class="war-terr">${b.territory}</span>` +
+    `<div class="war-sub">⚔️ pertes att: ${b.atkLosses} · déf: ${b.defLosses}` +
+    (b.atkAssist > 0 ? ` · +${b.atkAssist} alliés` : '') +
+    (b.defAssist > 0 ? ` · déf +${b.defAssist}` : '') + `</div>`,
+    involved
+  )
+
   let extra = ''
   if (b.atkAssist > 0) extra += ` (+${b.atkAssist} alliés)`
   if (b.defAssist > 0) extra += ` (déf +${b.defAssist} alliés)`
-  showToast(`${b.attackerWins ? '🏆' : '💀'} ${b.attackerWins ? `${who} a conquis` : `${who} a attaqué`} ${b.territory}${extra} (${winnerTxt})`, b.attackerWins ? 'win' : 'lose')
+  showToast(`${b.attackerWins ? '🏆' : '💀'} ${aName} ${winTxt} ${b.territory}${extra}`, b.attackerWins ? 'win' : 'lose')
+
+  if (involved) showBattleBanner(
+    b.attacker === state.you
+      ? `🏆 ${aName} avez conquis ${b.territory} !`
+      : `⚔️ ${aName} attaque votre territoire ${b.territory} !`,
+    b.attackerWins ? 'victory' : 'defeat'
+  )
+}
+
+// ─── War log ───────────────────────────────────────────────────────
+function toggleWarLog() {
+  const log = document.getElementById('war-log')
+  const show = log.style.display === 'none'
+  log.style.display = show ? 'block' : 'none'
+  document.getElementById('warlog-btn').style.background = show ? '#4a3a28' : ''
+}
+
+function logWar(html, involved) {
+  const log = document.getElementById('war-log')
+  if (!log) return
+  const e = document.createElement('div')
+  e.className = 'war-entry' + (involved ? ' war-mine' : '')
+  e.innerHTML = html
+  log.prepend(e)
+  while (log.children.length > 40) log.removeChild(log.lastChild)
+}
+
+function showBattleBanner(text, cls) {
+  let b = document.getElementById('battle-banner')
+  if (!b) {
+    b = document.createElement('div')
+    b.id = 'battle-banner'
+    document.body.appendChild(b)
+  }
+  b.textContent = text
+  b.className = 'show ' + (cls || '')
+  clearTimeout(b._t)
+  b._t = setTimeout(() => b.classList.remove('show'), 3200)
 }
 
 function handleMove(m) {

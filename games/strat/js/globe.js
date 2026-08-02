@@ -662,6 +662,21 @@ class Globe3D {
   }
 
   // ─── Battle Particles ────────────────────────────────────────────
+  flashTerritory(tid, colorHex, duration = 900) {
+    const t = TERRITORIES.find(x => x.id === tid)
+    const mesh = t && t._polyMesh
+    if (!mesh || !mesh.material || Array.isArray(mesh.material)) return
+    const mat = mesh.material
+    const base = mat.color.clone()
+    const flash = new THREE.Color(colorHex)
+    const start = performance.now()
+    const animId = setInterval(() => {
+      const p = Math.min(1, (performance.now() - start) / duration)
+      const wave = 0.5 - 0.5 * Math.cos(p * Math.PI * 5)
+      mat.color.copy(base).lerp(flash, wave * 0.95)
+      if (p >= 1) { clearInterval(animId); mat.color.copy(base) }
+    }, 16)
+  }
   spawnBattleParticles(territoryName, attackerWins) {
     const t = TERRITORIES.find(x => x.name === territoryName)
     if (!t) return
@@ -983,6 +998,7 @@ window.GlobeAPI = {
   hitTest: (x, y) => globe._hitTest(x, y),
   spawnBattleParticles: (name, win) => globe.spawnBattleParticles(name, win),
   spawnAttackProjectile: (from, to, win) => globe.spawnAttackProjectile(from, to, win),
+  flashTerritory: (tid, hex, dur) => globe.flashTerritory(tid, hex, dur),
   spawnMoveAnimation: (from, to) => globe.spawnMoveAnimation(from, to),
   spawnRecruitEffect: (tid) => globe.spawnRecruitEffect(tid),
   flyTo: (id) => globe.flyToTerritory(id),
