@@ -24,6 +24,7 @@ class StratGame:
     def __init__(self):
         self.players = {}       # pid -> {name, gold, food, wood, stone, ready, conn}
         self.turn = 0
+        self.wars = {}          # empire -> set(empires) — guerre permanente, symétrique
         self.phase = 'waiting'  # waiting | playing | done
         self.territories = {}   # tid -> {owner, army, pop, grid, buildings}
         for t in TERRITORIES:
@@ -72,6 +73,15 @@ class StratGame:
     def _empire_pids_except(self, empire, except_pid):
         return [pid for pid in self._empire_pids(empire) if pid != except_pid]
 
+    def _at_war(self, a, b):
+        return b in self.wars.get(a, set())
+
+    def _declare_war(self, a, b):
+        if a == b:
+            return
+        self.wars.setdefault(a, set()).add(b)
+        self.wars.setdefault(b, set()).add(a)
+
     def _empires_dict(self):
         out = {}
         for eid, info in EMPIRE_DATA.items():
@@ -81,6 +91,7 @@ class StratGame:
                     'name': info['name'], 'capital': info['capital'],
                     'color': info['color'], 'icon': info['icon'],
                     'players': pids,
+                    'wars': sorted(self.wars.get(eid, set())),
                     'pop': self._empire_pop(eid),
                     'army': self._empire_army(eid),
                 }
@@ -128,6 +139,7 @@ class StratGame:
 
     def distribute(self):
         """Give starting territories per empire, split round-robin among members"""
+        self.wars.clear()
         groups = {}
         for pid, p in self.players.items():
             groups.setdefault(p.get('empire', 'carthage'), []).append(pid)
@@ -184,7 +196,10 @@ class StratGame:
         return self._action(pid, cmd, data)
 
     def _action(self, pid, cmd, data):
-        tid = data.get('tid')
+        try:
+            tid = int(data.get('tid'))
+        except (TypeError, ValueError):
+            return {'error': 'Territoire inconnu'}
         t = self.territories.get(tid)
         if not t or t['owner'] != pid:
             return {'error': 'Pas votre territoire'}
@@ -201,12 +216,22 @@ class StratGame:
             return {'ok': True, **self.to_dict(pid)}
 
         if cmd == 'attack':
-            to_tid = data.get('to')
+            try:
+                to_tid = int(data.get('to'))
+            except (TypeError, ValueError):
+                return {'error': 'Territoire inconnu'}
             to_t = self.territories.get(to_tid)
             if not to_t:
                 return {'error': 'Territoire inconnu'}
             if to_t['owner'] and self._empire_of(to_t['owner']) == my_empire:
                 return {'error': 'Territoire allié (même empire)'}
+            # Déclaration de guerre automatique (guerre permanente)
+            if to_t['owner']:
+                def_empire = self._empire_of(to_t['owner'])
+                if def_empire != my_empire and not self._at_war(my_empire, def_empire):
+                    self._declare_war(my_empire, def_empire)
+                    self._broadcast({'action':'war','war':{
+                        'declared': my_empire, 'target': def_empire}})
             if t['army'] < 10:
                 return {'error': 'Pas assez de soldats'}
 
@@ -293,7 +318,10 @@ class StratGame:
             return {'ok': True, **self.to_dict(pid)}
 
         if cmd == 'move':
-            to_tid = data.get('to')
+            try:
+                to_tid = int(data.get('to'))
+            except (TypeError, ValueError):
+                return {'error': 'Territoire inconnu'}
             to_t = self.territories.get(to_tid)
             if not to_t or not to_t['owner'] or self._empire_of(to_t['owner']) != my_empire:
                 return {'error': 'Territoire non possédé'}
@@ -617,6 +645,7 @@ async def ws_handler(conn):
             del game.players[pid]
         if not game.players:
             game.phase = 'waiting'
+            game.wars.clear()
             for t in game.territories.values():
                 t['owner'] = None
                 t['army'] = 0

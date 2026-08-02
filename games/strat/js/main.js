@@ -108,6 +108,7 @@ function connectWS(name, empire) {
       updateHUD()
     }
     if (msg.action === 'battle') { handleBattle(msg.battle) }
+    if (msg.action === 'war') { handleWarDeclared(msg.war) }
     if (msg.action === 'move') { handleMove(msg.move) }
     if (msg.action === 'error') { showToast('⚠️ ' + msg.error, 'error') }
     if (msg.action === 'game_over') { alert('🏆 '+msg.winnerName+' a gagné!') }
@@ -181,6 +182,25 @@ function handleBattle(b) {
       : `⚔️ ${aName} attaque votre territoire ${b.territory} !`,
     b.attackerWins ? 'victory' : 'defeat'
   )
+}
+
+function empireInfo(emp) {
+  const e = (state.empires && state.empires[emp]) || EMPIRES[emp]
+  return e ? {name: e.name, icon: e.icon, color: e.color} : {name: emp, icon: '⚑', color: '#888'}
+}
+
+function handleWarDeclared(w) {
+  if (!w) return
+  const a = empireInfo(w.declared), b = empireInfo(w.target)
+  const mine = w.declared === state.your_empire || w.target === state.your_empire
+  logWar(
+    `<span class="war-att" style="color:${a.color}">${a.icon} ${a.name}</span> ` +
+    `<span class="war-win">⚔️ DÉCLARE LA GUERRE</span> ` +
+    `<span class="war-def" style="color:${b.color}">${b.icon} ${b.name}</span>`,
+    mine
+  )
+  showToast(`⚔️ ${a.name} déclare la guerre à ${b.name} !`, mine ? 'war' : 'info')
+  updateHUD()
 }
 
 // ─── War log ───────────────────────────────────────────────────────
@@ -380,7 +400,6 @@ function showTerritoryBar(id) {
       allEnemies.push({id: Number(tid), name: TERRITORIES.find(y => y.id === Number(tid))?.name || tid, army: ot.army || 0})
     }
   }
-  allEnemies.sort((a, b) => a.name.localeCompare(b.name))
   if (allEnemies.length) {
     const hint = document.createElement('span')
     hint.className = 'terr-bar-hint'
@@ -394,14 +413,7 @@ function showTerritoryBar(id) {
     amt.className = 'tb-amount'
     amt.title = `Soldats disponibles : ${td?.army||0}`
     bar.appendChild(amt)
-    const tsel = document.createElement('select')
-    tsel.className = 'tb-dest'
-    for (const e of allEnemies) {
-      const o = document.createElement('option')
-      o.value = e.id
-      o.textContent = `${e.name} (⚔️${e.army})`
-      tsel.appendChild(o)
-    }
+    const tsel = buildEnemySelect(allEnemies)
     bar.appendChild(tsel)
     const pvEl = document.createElement('span')
     pvEl.className = 'terr-bar-info'
@@ -439,6 +451,34 @@ function tbBtn(label, cls, fn) {
   if (cls) b.className = cls
   b.onclick = fn
   return b
+}
+
+function buildEnemySelect(list, selectedId) {
+  const sel = document.createElement('select')
+  sel.className = 'tb-dest'
+  const groups = {}
+  for (const e of list) {
+    const emp = empireOf(state.territories[e.id]?.owner)
+    if (!emp) continue
+    if (!groups[emp]) groups[emp] = {info: empireInfo(emp), cities: []}
+    groups[emp].cities.push(e)
+  }
+  for (const emp in groups) {
+    const g = groups[emp]
+    g.cities.sort((a, b) => a.name.localeCompare(b.name))
+    const atWar = (g.info.wars || []).includes(state.your_empire)
+    const og = document.createElement('optgroup')
+    og.label = `${g.info.icon} ${g.info.name} ${atWar ? '⚔️' : '☮️'}`
+    for (const c of g.cities) {
+      const o = document.createElement('option')
+      o.value = c.id
+      o.textContent = `${c.name} (⚔️${c.army})`
+      if (c.id === selectedId) o.selected = true
+      og.appendChild(o)
+    }
+    sel.appendChild(og)
+  }
+  return sel
 }
 
 function showEnemyBar(id) {
@@ -491,16 +531,7 @@ function showEnemyBar(id) {
       targets.push({id: Number(tid), name: TERRITORIES.find(y => y.id === Number(tid))?.name || tid, army: ot.army || 0})
     }
   }
-  targets.sort((a, b) => a.name.localeCompare(b.name))
-  const tsel = document.createElement('select')
-  tsel.className = 'tb-dest'
-  for (const e of targets) {
-    const o = document.createElement('option')
-    o.value = e.id
-    o.textContent = `${e.name} (⚔️${e.army})`
-    if (e.id === id) o.selected = true
-    tsel.appendChild(o)
-  }
+  const tsel = buildEnemySelect(targets, id)
   bar.appendChild(tsel)
   const amt = document.createElement('input')
   amt.type = 'number'
@@ -603,12 +634,19 @@ function updateLegend(myEmp) {
   Object.entries(emps).forEach(([id, e]) => {
     owned[id] = (e.players||[]).reduce((s, pid) => s + (counts[pid]||0), 0)
   })
-  leg.innerHTML = `<h4>🎨 Empires</h4>` +
+  const myWars = myEmp ? (emps[myEmp]?.wars || []) : []
+  const warLine = myWars.length
+    ? `<div class="legend-war">⚔️ En guerre : ${myWars.map(w => {
+        const ew = emps[w]; return `<span style="color:${ew?.color||'#fff'}">${ew?.icon||'⚑'} ${ew?.name||w}</span>`
+      }).join(' ')}</div>`
+    : `<div class="legend-war peace">☮️ En paix avec tous</div>`
+  leg.innerHTML = `<h4>🎨 Empires</h4>` + warLine +
     Object.entries(emps).map(([id, e]) => {
       const mine = myEmp && id === myEmp
       return `<div class="legend-row${mine ? ' you' : ''}">
         <span class="swatch" style="background:${e.color}"></span>
         <span class="ename">${e.icon} ${e.name}</span>
+        <span class="ewar">${myWars.includes(id) ? '⚔️' : (mine ? '' : '☮️')}</span>
         <span style="color:${mine ? '#7dffa0' : '#8a9a7a'}">${owned[id]}</span>
       </div>`
     }).join('')
