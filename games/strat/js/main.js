@@ -10,6 +10,33 @@ const UNIT_STATS = {
   navy:     {name:'Navire',   icon:'🚢', a:2.0, d:2.0, cost:4},
 }
 const UNIT_ORDER = ['soldier','cavalry','elephant','camel','navy']
+const COUNTER = {
+  soldier:  {soldier:1.0, cavalry:1.0, elephant:1.0, camel:1.0, navy:1.0},
+  cavalry:  {soldier:2.0, cavalry:1.0, elephant:0.5, camel:1.0, navy:1.0},
+  elephant: {soldier:1.0, cavalry:2.0, elephant:1.0, camel:0.5, navy:1.0},
+  camel:    {soldier:1.0, cavalry:1.0, elephant:2.0, camel:1.0, navy:1.0},
+  navy:     {soldier:1.0, cavalry:1.0, elephant:1.0, camel:1.0, navy:1.5},
+}
+function atkTypeMult(utype, toT) {
+  const defU = unitsOf(toT)
+  let total = 0
+  for (const d of UNIT_ORDER) total += defU[d] * UNIT_STATS[d].d
+  let mult = 1
+  if (total > 0) {
+    for (const d of UNIT_ORDER) {
+      if (defU[d] > 0) mult += (COUNTER[utype][d] - 1) * ((defU[d] * UNIT_STATS[d].d) / total)
+    }
+  }
+  const fort = toT.fort || 0
+  if (utype === 'elephant') mult += 0.25 * fort
+  else mult *= Math.max(0.3, 1 - 0.1 * fort)
+  return mult
+}
+function dominantUnit(units) {
+  let best = 'soldier', bn = -1
+  for (const k in units) if (units[k] > bn) { bn = units[k]; best = k }
+  return best
+}
 function unitsOf(td) {
   const u = td?.units || {}
   return {
@@ -176,7 +203,7 @@ function handleBattle(b) {
     const aHex = empireColorOf(b.attacker)
     GlobeAPI.spawnBattleParticles(b.territory, b.attackerWins, aHex)
     if (b.fromTid !== undefined && b.toTid !== undefined) {
-      GlobeAPI.spawnAttackProjectile(b.fromTid, b.toTid, b.attackerWins, aHex)
+      GlobeAPI.spawnAttackProjectile(b.fromTid, b.toTid, b.attackerWins, aHex, b.unit)
       GlobeAPI.flashTerritory(b.toTid, b.attackerWins ? 0xffffff : 0xff2222)
     }
   }
@@ -188,7 +215,12 @@ function handleBattle(b) {
   const dCol = b.defender ? empireColorOf(b.defender) : '#888'
   const winTxt = b.attackerWins ? 'conquis' : 'attaqué'
   const involved = b.attacker === state.you || b.defender === state.you
-  const uIcon = unitIcon(b.unit)
+  let uDesc = unitIcon(b.unit)
+  if (b.units) {
+    const parts = []
+    for (const k of UNIT_ORDER) if ((b.units[k] || 0) > 0) parts.push(`${UNIT_STATS[k].icon}${b.units[k]}`)
+    if (parts.length) uDesc = parts.join(' ')
+  }
 
   logWar(
     `<span class="war-att" style="color:${aCol}">${aName}</span>` +
@@ -196,7 +228,7 @@ function handleBattle(b) {
     `<span class="war-def" style="color:${dCol}">${dName}</span> ` +
     `<span class="${b.attackerWins ? 'war-win' : 'war-lose'}">${winTxt}</span> ` +
     `<span class="war-terr">${b.territory}</span>` +
-    `<div class="war-sub">${uIcon} pertes att: ${b.atkLosses} · déf: ${b.defLosses}` +
+    `<div class="war-sub">${uDesc} pertes att: ${b.atkLosses} · déf: ${b.defLosses}` +
     (b.atkAssist > 0 ? ` · +${b.atkAssist} alliés` : '') +
     (b.defAssist > 0 ? ` · déf +${b.defAssist}` : '') + `</div>`,
     involved
@@ -327,9 +359,9 @@ function handleEnemyDoubleClick(id) {
     }
   }
   if (fromId === null) return
-  const pv = attackPreview(fromId, id)
+  const pv = attackPreview(fromId, id, {soldier: Math.floor((state.territories[fromId]?.army || 0) * 0.7)})
   send('attack', {tid: fromId, to: id})
-  if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(fromId, id, pv ? pv.chance >= 50 : false, empireColorOf(state.you))
+  if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(fromId, id, pv ? pv.chance >= 50 : false, empireColorOf(state.you), 'soldier')
   hideTerritoryBar()
   selTid = null
   GlobeAPI.clearSelection()
@@ -345,32 +377,34 @@ function armyByOwner() {
   return m
 }
 
-function attackPreview(fromId, toId, amount, utype) {
+function attackPreview(fromId, toId, units) {
   const fromT = state.territories[fromId]
   const toT = state.territories[toId]
   if (!fromT || !toT) return null
-  const u = UNIT_STATS[utype || 'soldier']
-  const fromU = unitsOf(fromT)
-  const atk = amount
-    ? Math.max(1, Math.min(Math.floor(amount), fromU[utype || 'soldier'] || 0))
-    : (utype === 'soldier' || !utype)
-      ? Math.floor((fromT.army || 0) * 0.7)
-      : fromU[utype]
+  const uu = unitsOf(fromT)
+  let total = 0
+  for (const k of UNIT_ORDER) total += Math.min(units[k] || 0, uu[k] || 0)
+  if (total <= 0) return null
+  let atkPow = 0
+  for (const k of UNIT_ORDER) {
+    const n = Math.min(units[k] || 0, uu[k] || 0)
+    if (n > 0) atkPow += n * UNIT_STATS[k].a * atkTypeMult(k, toT)
+  }
   const myEmp = state.your_empire || state.players[state.you]?.empire
   let allyPow = 0
   for (const pid in state.players) {
     if (pid !== state.you && state.players[pid]?.empire === myEmp) allyPow += ownerPower(pid)
   }
-  const atkFull = atk * u.a + Math.floor(allyPow * 0.2)
-  const defBase = ownerPower(toT.owner, true) * (1 + (toT.fort || 0) * 0.2)
+  atkPow += Math.floor(allyPow * 0.2)
+  const defFull = ownerPower(toT.owner, true) * (1 + (toT.fort || 0) * 0.2)
   const defEmp = state.players[toT.owner]?.empire
   let defAllyPow = 0
   for (const pid in state.players) {
     if (pid !== toT.owner && state.players[pid]?.empire === defEmp) defAllyPow += ownerPower(pid, true)
   }
-  const defFull = defBase + Math.floor(defAllyPow * 0.2)
-  const chance = atkFull <= 0 ? 0 : Math.max(0, Math.min(1, (atkFull * 1.2 - defFull) / (atkFull * 0.4)))
-  return { atk: Math.round(atkFull), def: Math.round(defFull), chance: Math.round(chance * 100) }
+  const defPow = defFull + Math.floor(defAllyPow * 0.2)
+  const chance = atkPow <= 0 ? 0 : Math.max(0, Math.min(1, (atkPow * 1.2 - defPow) / (atkPow * 0.4)))
+  return { atk: Math.round(atkPow), def: Math.round(defPow), chance: Math.round(chance * 100), total }
 }
 
 // ─── Territory action bar (compact, non-blocking) ─────────────────
@@ -472,33 +506,28 @@ function showTerritoryBar(id) {
   if (allEnemies.length) {
     const hint = document.createElement('span')
     hint.className = 'terr-bar-hint'
-    hint.textContent = '⚔️ Attaquer :'
+    hint.textContent = '⚔️ Attaquer (mélange d\'unités) :'
     bar.appendChild(hint)
-    const utypeSel = document.createElement('select')
-    utypeSel.className = 'tb-dest'
+    const rows = []
     for (const k of UNIT_ORDER) {
-      const st = UNIT_STATS[k]
-      const o = document.createElement('option')
-      o.value = k
-      o.textContent = `${st.icon} ${st.name}${k !== 'soldier' ? ` (${st.cost}⚔)` : ''}`
-      utypeSel.appendChild(o)
-    }
-    bar.appendChild(utypeSel)
-    const amt = document.createElement('input')
-    amt.type = 'number'
-    amt.min = 1
-    amt.max = td?.army || 0
-    amt.value = Math.max(1, Math.floor((td?.army || 0) * 0.7))
-    amt.className = 'tb-amount'
-    bar.appendChild(amt)
-    const syncAmt = () => {
-      const pool = unitsOf(td)[utypeSel.value] || 0
-      amt.max = Math.max(1, pool)
-      amt.value = utypeSel.value === 'soldier'
-        ? Math.max(1, Math.floor(pool * 0.7))
-        : Math.max(1, pool)
-      amt.title = `Disponibles : ${pool} ${UNIT_STATS[utypeSel.value].icon}`
-      if (pool < 1) { amt.value = 1; }
+      const pool = unitsOf(td)[k] || 0
+      const wrap = document.createElement('span')
+      wrap.className = 'tb-mix'
+      const lab = document.createElement('span')
+      lab.className = 'tb-mix-label'
+      lab.textContent = UNIT_STATS[k].icon
+      lab.title = `${UNIT_STATS[k].name} — disponibles : ${pool}`
+      const inp = document.createElement('input')
+      inp.type = 'number'
+      inp.min = 0
+      inp.max = pool
+      inp.value = k === 'soldier' ? Math.max(0, Math.floor((td?.army || 0) * 0.7)) : 0
+      inp.className = 'tb-amount'
+      inp.title = `${UNIT_STATS[k].name} disponibles : ${pool}`
+      wrap.appendChild(lab)
+      wrap.appendChild(inp)
+      bar.appendChild(wrap)
+      rows.push({k, inp, pool})
     }
     const tsel = buildEnemySelect(allEnemies)
     bar.appendChild(tsel)
@@ -506,30 +535,37 @@ function showTerritoryBar(id) {
     pvEl.className = 'terr-bar-info'
     bar.appendChild(pvEl)
     const attackBtn = tbBtn('⚔️ Attaquer', 'tb-btn tb-attack', () => {
-      const amount = Math.max(1, Math.min(parseInt(amt.value) || 50, unitsOf(td)[utypeSel.value] || 1))
+      const units = {}
+      for (const r of rows) {
+        const v = Math.max(0, parseInt(r.inp.value) || 0)
+        if (v > 0) units[r.k] = Math.min(v, r.pool)
+      }
       const toId = Number(tsel.value)
-      const pv = attackPreview(id, toId, amount, utypeSel.value)
-      send('attack', {tid: id, to: toId, amount, type: utypeSel.value})
-      if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(id, toId, pv ? pv.chance >= 50 : false, empireColorOf(state.you))
+      const pv = attackPreview(id, toId, units)
+      send('attack', {tid: id, to: toId, units})
+      if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(id, toId, pv ? pv.chance >= 50 : false, empireColorOf(state.you), dominantUnit(units))
       hideTerritoryBar()
       selTid = null
       GlobeAPI.clearSelection()
     })
     const updatePv = () => {
-      const amount = Math.max(1, Math.min(parseInt(amt.value) || 50, unitsOf(td)[utypeSel.value] || 1))
+      const units = {}
+      let total = 0
+      for (const r of rows) {
+        const v = Math.max(0, parseInt(r.inp.value) || 0)
+        if (v > 0) { units[r.k] = Math.min(v, r.pool); total += units[r.k] }
+      }
       const toId = Number(tsel.value)
-      const pv = attackPreview(id, toId, amount, utypeSel.value)
+      const pv = attackPreview(id, toId, units)
       const et = allEnemies.find(e => e.id === toId)
       pvEl.textContent = pv
-        ? `${UNIT_STATS[utypeSel.value].icon}${pv.atk} vs 🛡️${pv.def} — ${pv.chance}% (${amount} envoyés)`
-        : ''
-      attackBtn.classList.toggle('disabled', !pv || pv.atk <= 0 || !et || (unitsOf(td)[utypeSel.value] || 0) < 1)
+        ? `⚔️${pv.atk} vs 🛡️${pv.def} — ${pv.chance}% (${total} envoyés)`
+        : 'Aucune unité sélectionnée'
+      attackBtn.classList.toggle('disabled', !pv || !et || total < 1)
     }
-    utypeSel.onchange = () => { syncAmt(); updatePv() }
-    amt.oninput = updatePv
+    for (const r of rows) r.inp.oninput = updatePv
     tsel.onchange = updatePv
     bar.appendChild(attackBtn)
-    syncAmt()
     updatePv()
   }
   bar.appendChild(btn('✕', 'tb-close', () => hideTerritoryBar()))
@@ -639,9 +675,9 @@ function showEnemyBar(id) {
     const sid = Number(sel.value)
     const toId = Number(tsel.value)
     const amount = Math.max(1, Math.min(parseInt(amt.value) || 50, state.territories[sid]?.army || 1))
-    const pv = attackPreview(sid, toId, amount)
+    const pv = attackPreview(sid, toId, {soldier: amount})
     send('attack', {tid: sid, to: toId, amount})
-    if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(sid, toId, pv ? pv.chance >= 50 : false, empireColorOf(state.you))
+    if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(sid, toId, pv ? pv.chance >= 50 : false, empireColorOf(state.you), 'soldier')
     hideTerritoryBar()
     selTid = null
     GlobeAPI.clearSelection()
@@ -650,7 +686,7 @@ function showEnemyBar(id) {
     const sid = Number(sel.value)
     const toId = Number(tsel.value)
     const amount = Math.max(1, Math.min(parseInt(amt.value) || 50, state.territories[sid]?.army || 1))
-    const pv = attackPreview(sid, toId, amount)
+    const pv = attackPreview(sid, toId, {soldier: amount})
     const st = state.territories[sid]
     pvEl.textContent = pv ? `⚔️${pv.atk} vs ⚔️${pv.def} — ${pv.chance}% (${st?.army||0} dispo, ${amount} envoyés)` : ''
     attackBtn.classList.toggle('disabled', !pv || pv.atk <= 0)

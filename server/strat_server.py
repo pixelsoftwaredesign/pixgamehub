@@ -28,6 +28,15 @@ UNIT_STATS = {
     'navy':     {'name': 'Navire',   'icon': '🚢', 'a': 2.0, 'd': 2.0, 'cost': 4},
 }
 
+# Bonus pierre-feuille-ciseaux : multiplicateur attaquant vs unité défendante
+COUNTER = {
+    'soldier':  {'soldier': 1.0, 'cavalry': 1.0, 'elephant': 1.0, 'camel': 1.0, 'navy': 1.0},
+    'cavalry':  {'soldier': 2.0, 'cavalry': 1.0, 'elephant': 0.5, 'camel': 1.0, 'navy': 1.0},
+    'elephant': {'soldier': 1.0, 'cavalry': 2.0, 'elephant': 1.0, 'camel': 0.5, 'navy': 1.0},
+    'camel':    {'soldier': 1.0, 'cavalry': 1.0, 'elephant': 2.0, 'camel': 1.0, 'navy': 1.0},
+    'navy':     {'soldier': 1.0, 'cavalry': 1.0, 'elephant': 1.0, 'camel': 1.0, 'navy': 1.5},
+}
+
 # ─── Game state ────────────────────────────────────────────────────
 class StratGame:
     def __init__(self):
@@ -142,6 +151,23 @@ class StratGame:
     def _player_power(self, pid):
         """Puissance d'attaque totale du joueur."""
         return sum(self._t_atk(t) for t in self.territories.values() if t['owner'] == pid)
+
+    def _atk_type_mult(self, utype, to_t):
+        """Bonus pierre-feuille-ciseaux (vs composition défense) + siège (murs)."""
+        total = self._t_def(to_t)
+        mult = 1.0
+        if total > 0:
+            for d_type in UNIT_STATS:
+                d_count = to_t['army'] if d_type == 'soldier' else self._t_units(to_t).get(d_type, 0)
+                if d_count > 0:
+                    w = (d_count * UNIT_STATS[d_type]['d']) / total
+                    mult += (COUNTER[utype][d_type] - 1) * w
+        fort = to_t.get('fort', 0)
+        if utype == 'elephant':
+            mult += 0.25 * fort            # les éléphants percent les murs
+        else:
+            mult *= max(0.3, 1 - 0.1 * fort)  # les murs réduisent l'attaque
+        return mult
 
     def _empire_setup(self, eid, pids):
         """Give one empire its capital + home territories, split round-robin among members"""
@@ -288,29 +314,43 @@ class StratGame:
                         'declared': my_empire, 'target': def_empire}})
 
             utype = data.get('type') or 'soldier'
-            st = UNIT_STATS.get(utype)
-            if not st:
-                return {'error': 'Unité inconnue'}
-            pool = t['army'] if utype == 'soldier' else self._t_units(t).get(utype, 0)
-            if pool < 1:
-                return {'error': 'Pas assez de cette unité'}
-
-            amt = data.get('amount')
-            if amt is None:
-                if utype == 'soldier':
-                    atk = int(t['army'] * 0.7)
+            sent = {}
+            if isinstance(data.get('units'), dict):
+                for u in UNIT_STATS:
+                    try:
+                        n = max(0, int(data['units'].get(u, 0)))
+                    except (TypeError, ValueError):
+                        n = 0
+                    if n > 0:
+                        pool = t['army'] if u == 'soldier' else self._t_units(t).get(u, 0)
+                        n = min(n, pool)
+                        if n > 0:
+                            sent[u] = n
+                if not sent:
+                    return {'error': 'Aucune unité envoyée'}
+            else:
+                if utype not in UNIT_STATS:
+                    return {'error': 'Unité inconnue'}
+                pool = t['army'] if utype == 'soldier' else self._t_units(t).get(utype, 0)
+                if pool < 1:
+                    return {'error': 'Pas assez de cette unité'}
+                amt = data.get('amount')
+                if amt is None:
+                    atk = int(t['army'] * 0.7) if utype == 'soldier' else pool
                 else:
-                    atk = pool
-            else:
-                try:
-                    atk = max(1, min(int(amt), pool))
-                except (TypeError, ValueError):
-                    return {'error': 'Montant invalide'}
-            atk_src = atk
-            if utype == 'soldier':
-                t['army'] -= atk
-            else:
-                self._t_units(t)[utype] = max(0, self._t_units(t).get(utype, 0) - atk)
+                    try:
+                        atk = max(1, min(int(amt), pool))
+                    except (TypeError, ValueError):
+                        return {'error': 'Montant invalide'}
+                sent[utype] = atk
+
+            for u, n in sent.items():
+                if u == 'soldier':
+                    t['army'] -= n
+                else:
+                    self._t_units(t)[u] = max(0, self._t_units(t).get(u, 0) - n)
+            total_sent = sum(sent.values())
+
             atk_assist = 0
             for ally_pid in self._empire_pids_except(my_empire, pid):
                 take = int(self._player_power(ally_pid) * 0.2)
@@ -328,26 +368,36 @@ class StratGame:
                         def_assist += take
             def_power += def_assist
 
-            atk_power = atk * st['a'] * (0.8 + 0.4 * random.random()) + atk_assist
+            atk_power = 0
+            for u, n in sent.items():
+                atk_power += n * UNIT_STATS[u]['a'] * self._atk_type_mult(u, to_t)
+            atk_power *= (0.8 + 0.4 * random.random())
+            atk_power += atk_assist
+            dominant = max(sent, key=lambda u: sent[u])
+
             if atk_power > def_power:
                 old_owner = to_t['owner']
                 raw_def = to_t['army'] + sum(self._t_units(to_t).values())
+                survivors = max(1, total_sent - raw_def)
+                new_units = {}
+                rem = survivors
+                for u, n in sent.items():
+                    q = int(n / total_sent * survivors)
+                    new_units[u] = q
+                    rem -= q
+                if rem > 0:
+                    new_units[dominant] = new_units.get(dominant, 0) + rem
                 to_t['owner'] = pid
-                leftover = max(1, atk - raw_def)
-                if utype == 'soldier':
-                    to_t['army'] = leftover
-                    to_t['units'] = {}
-                else:
-                    to_t['army'] = 0
-                    to_t['units'] = {utype: leftover}
+                to_t['army'] = new_units.pop('soldier', 0)
+                to_t['units'] = new_units
                 if not to_t['grid']:
                     to_t['grid'] = self._make_grid()
                 self._broadcast({'action':'battle','battle':{
                     'territory':to_t['name'],'attackerWins':True,
                     'attacker':pid,'defender':old_owner,
                     'fromTid':tid,'toTid':to_tid,
-                    'unit':utype, 'amount':atk_src,
-                    'atkLosses':atk - leftover,'defLosses':raw_def,
+                    'unit':dominant,'units':sent, 'amount':total_sent,
+                    'atkLosses':total_sent - survivors,'defLosses':raw_def,
                     'atkAssist':atk_assist,'defAssist':def_assist
                 }})
             else:
@@ -355,8 +405,8 @@ class StratGame:
                     'territory':to_t['name'],'attackerWins':False,
                     'attacker':pid,'defender':to_t['owner'],
                     'fromTid':tid,'toTid':to_tid,
-                    'unit':utype, 'amount':atk_src,
-                    'atkLosses':atk,'defLosses':int(def_power * 0.3),
+                    'unit':dominant,'units':sent, 'amount':total_sent,
+                    'atkLosses':total_sent,'defLosses':int(def_power * 0.3),
                     'atkAssist':atk_assist,'defAssist':def_assist
                 }})
             asyncio.create_task(self._send_personalized())

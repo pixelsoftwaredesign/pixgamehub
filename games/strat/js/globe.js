@@ -749,13 +749,22 @@ class Globe3D {
   }
 
   // ─── Attack projectile (arc from → to) ───────────────────────────
-  spawnAttackProjectile(fromTid, toTid, attackerWins, colorHex) {
+  spawnAttackProjectile(fromTid, toTid, attackerWins, colorHex, unit) {
+    const VIZ = {
+      soldier:  {size: 0.11, halo: 0.30, dur: 650, trail: 36, tint: null},
+      cavalry:  {size: 0.07, halo: 0.20, dur: 380, trail: 16, tint: 0xffd27a},
+      elephant: {size: 0.20, halo: 0.42, dur: 1000, trail: 44, tint: null},
+      camel:    {size: 0.12, halo: 0.30, dur: 700, trail: 30, tint: 0xe0a23a},
+      navy:     {size: 0.15, halo: 0.36, dur: 850, trail: 40, tint: 0x55bbff},
+    }
+    const viz = VIZ[unit] || VIZ.soldier
     const a = TERRITORIES.find(x => x.id === fromTid)
     const b = TERRITORIES.find(x => x.id === toTid)
     if (!a || !b) return
     const p1 = a.pos.clone().normalize().multiplyScalar(RADIUS * 0.985)
     const p2 = b.pos.clone().normalize().multiplyScalar(RADIUS * 0.985)
     const color = colorHex ? new THREE.Color(colorHex) : (attackerWins ? 0xffd700 : 0xff5522)
+    if (viz.tint) color.lerp(new THREE.Color(viz.tint), 0.55)
 
     const arcPts = []
     const steps = 28
@@ -780,30 +789,30 @@ class Globe3D {
     this.dotGroup.add(coreLine)
 
     // Comet trail behind the projectile
-    const trailN = 36
+    const trailN = viz.trail
     const trailGeo = new THREE.BufferGeometry()
     trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(trailN * 3), 3))
-    const trailMat = new THREE.PointsMaterial({ color, size: 0.12, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
+    const trailMat = new THREE.PointsMaterial({ color, size: 0.07 + viz.size * 0.5, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
     const trail = new THREE.Points(trailGeo, trailMat)
     trail.renderOrder = 850
     this.dotGroup.add(trail)
 
     // Glowing orb: bright core + additive halo, rotating
     const core = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.11, 1),
+      new THREE.IcosahedronGeometry(viz.size, 1),
       new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false })
     )
     core.renderOrder = 860
     this.dotGroup.add(core)
     const halo = new THREE.Mesh(
-      new THREE.SphereGeometry(0.3, 14, 10),
+      new THREE.SphereGeometry(viz.halo, 14, 10),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending })
     )
     halo.renderOrder = 855
     this.dotGroup.add(halo)
 
     const start = performance.now()
-    const duration = 650
+    const duration = viz.dur
     const animId = setInterval(() => {
       const u = Math.min(1, (performance.now() - start) / duration)
       const idx = Math.min(steps, Math.floor(u * steps))
@@ -1109,7 +1118,7 @@ window.GlobeAPI = {
   clearSelection: () => globe.clearSelection(),
   hitTest: (x, y) => globe._hitTest(x, y),
   spawnBattleParticles: (name, win, colorHex) => globe.spawnBattleParticles(name, win, colorHex),
-  spawnAttackProjectile: (from, to, win, colorHex) => globe.spawnAttackProjectile(from, to, win, colorHex),
+  spawnAttackProjectile: (from, to, win, colorHex, unit) => globe.spawnAttackProjectile(from, to, win, colorHex, unit),
   flashTerritory: (tid, hex, dur) => globe.flashTerritory(tid, hex, dur),
   spawnMoveAnimation: (from, to) => globe.spawnMoveAnimation(from, to),
   spawnRecruitEffect: (tid) => globe.spawnRecruitEffect(tid),
