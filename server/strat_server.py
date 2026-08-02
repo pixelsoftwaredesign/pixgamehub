@@ -467,6 +467,7 @@ async def _http_respond(writer, status, ctype, body_bytes):
     head = (f'HTTP/1.1 {status} {reason}\r\n'
             f'Content-Type: {ctype}\r\n'
             f'Content-Length: {len(body_bytes)}\r\n'
+            f'Cache-Control: no-cache, no-store, must-revalidate\r\n'
             f'Access-Control-Allow-Origin: *\r\n'
             f'Connection: close\r\n\r\n')
     writer.write(head.encode('latin-1') + body_bytes)
@@ -564,6 +565,9 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=str(ROOT), **kw)
     def log_message(self, *a): pass
+    def end_headers(self):
+        self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+        super().end_headers()
     def guess_type(self, path):
         ext = Path(path).suffix
         return MIME_TYPES.get(ext) or super().guess_type(path)

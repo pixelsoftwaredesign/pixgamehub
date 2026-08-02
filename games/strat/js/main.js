@@ -200,6 +200,7 @@ function handleWarDeclared(w) {
     mine
   )
   showToast(`⚔️ ${a.name} déclare la guerre à ${b.name} !`, mine ? 'war' : 'info')
+  if (mine) showBattleBanner(`⚔️ GUERRE ! ${a.name} ⚔️ ${b.name}`, 'war')
   updateHUD()
 }
 
