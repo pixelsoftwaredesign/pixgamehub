@@ -754,7 +754,7 @@ class Globe3D {
     trail.renderOrder = 850
     this.dotGroup.add(trail)
 
-    const dotGeo = new THREE.SphereGeometry(0.13, 10, 8)
+    const dotGeo = new THREE.BoxGeometry(0.16, 0.16, 0.16)
     const dotMat = new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false })
     const dot = new THREE.Mesh(dotGeo, dotMat)
     dot.renderOrder = 860

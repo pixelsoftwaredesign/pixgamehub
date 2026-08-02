@@ -210,8 +210,15 @@ class StratGame:
             if t['army'] < 10:
                 return {'error': 'Pas assez de soldats'}
 
-            # Attacker commits 70% of the source territory + up to 20% of each ally's army
-            atk = int(t['army'] * 0.7)
+            amt = data.get('amount')
+            if amt is None:
+                atk = int(t['army'] * 0.7)
+            else:
+                try:
+                    atk = max(1, min(int(amt), t['army']))
+                except (TypeError, ValueError):
+                    return {'error': 'Montant invalide'}
+            atk_src = atk
             t['army'] -= atk
             atk_assist = 0
             for ally_pid in self._empire_pids_except(my_empire, pid):
@@ -242,6 +249,7 @@ class StratGame:
                     'territory':to_t['name'],'attackerWins':True,
                     'attacker':pid,'defender':old_owner,
                     'fromTid':tid,'toTid':to_tid,
+                    'amount':atk_src,
                     'atkLosses':atk - t['army'],'defLosses':to_t['army'],
                     'atkAssist':atk_assist,'defAssist':def_assist
                 }})
@@ -250,6 +258,7 @@ class StratGame:
                     'territory':to_t['name'],'attackerWins':False,
                     'attacker':pid,'defender':to_t['owner'],
                     'fromTid':tid,'toTid':to_tid,
+                    'amount':atk_src,
                     'atkLosses':atk,'defLosses':int(def_power * 0.3),
                     'atkAssist':atk_assist,'defAssist':def_assist
                 }})

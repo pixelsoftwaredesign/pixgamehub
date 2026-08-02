@@ -289,13 +289,15 @@ function armyByOwner() {
   return m
 }
 
-function attackPreview(fromId, toId) {
+function attackPreview(fromId, toId, amount) {
   const fromT = state.territories[fromId]
   const toT = state.territories[toId]
   if (!fromT || !toT) return null
   const armies = armyByOwner()
   const myEmp = state.your_empire || state.players[state.you]?.empire
-  const atk = Math.floor((fromT.army || 0) * 0.7)
+  const atk = amount
+    ? Math.max(1, Math.min(Math.floor(amount), fromT.army || 0))
+    : Math.floor((fromT.army || 0) * 0.7)
   const allyArmy = myEmp ? Math.max(0, ((state.empires[myEmp] || {}).army || 0) - (armies[state.you] || 0)) : 0
   const atkFull = atk + Math.floor(allyArmy * 0.2)
   const defBase = Math.floor((toT.army || 0) * (1 + (toT.fort || 0) * 0.2))
@@ -374,19 +376,37 @@ function showTerritoryBar(id) {
     hint.className = 'terr-bar-hint'
     hint.textContent = '⚔️ Attaques possibles :'
     bar.appendChild(hint)
-    for (const en of enemies) {
-      const pv = attackPreview(id, en.id)
+    const amt = document.createElement('input')
+    amt.type = 'number'
+    amt.min = 1
+    amt.max = td?.army || 0
+    amt.value = Math.max(1, Math.floor((td?.army || 0) * 0.7))
+    amt.className = 'tb-amount'
+    amt.title = `Soldats disponibles : ${td?.army||0}`
+    bar.appendChild(amt)
+    const renderEn = (en) => {
+      const amount = Math.max(1, Math.min(parseInt(amt.value) || 50, td?.army || 1))
+      const pv = attackPreview(id, en.id, amount)
       const chance = pv ? pv.chance : 0
       const pct = chance >= 60 ? 'pct-high' : (chance >= 35 ? 'pct-mid' : 'pct-low')
       const b = btn(`⚔️ ${en.name} (${pv ? `⚔️${pv.atk} vs ⚔️${pv.def} — ` : ''}${chance}%)`, 'tb-btn tb-attack', () => {
-        send('attack', {tid: id, to: en.id})
-        if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(id, en.id, chance >= 50, empireColorOf(state.you))
+        send('attack', {tid: id, to: en.id, amount})
+        if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(id, en.id, pv ? pv.chance >= 50 : false, empireColorOf(state.you))
         hideTerritoryBar()
         selTid = null
         GlobeAPI.clearSelection()
       })
       b.classList.add(pct)
-      bar.appendChild(b)
+      return b
+    }
+    const enButtons = enemies.map(renderEn)
+    enButtons.forEach(b => bar.appendChild(b))
+    amt.oninput = () => {
+      const buttons = Array.from(bar.querySelectorAll('.tb-attack'))
+      enemies.forEach((en, i) => {
+        const nb = renderEn(en)
+        buttons[i].replaceWith(nb)
+      })
     }
   }
   bar.appendChild(btn('✕', 'tb-close', () => hideTerritoryBar()))
@@ -444,13 +464,22 @@ function showEnemyBar(id) {
     sel.appendChild(o)
   }
   bar.appendChild(sel)
+  const amt = document.createElement('input')
+  amt.type = 'number'
+  amt.min = 1
+  amt.max = sources.length ? (sources[0].army || 0) : 1
+  amt.value = Math.max(1, Math.floor((sources[0]?.army || 0) * 0.7))
+  amt.className = 'tb-amount'
+  amt.title = 'Soldats engagés dans l'attaque'
+  bar.appendChild(amt)
   const pvEl = document.createElement('span')
   pvEl.className = 'terr-bar-info'
   bar.appendChild(pvEl)
   const attackBtn = tbBtn('⚔️ Attaquer', 'tb-btn tb-attack', () => {
     const sid = Number(sel.value)
-    const pv = attackPreview(sid, id)
-    send('attack', {tid: sid, to: id})
+    const amount = Math.max(1, Math.min(parseInt(amt.value) || 50, state.territories[sid]?.army || 1))
+    const pv = attackPreview(sid, id, amount)
+    send('attack', {tid: sid, to: id, amount})
     if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(sid, id, pv ? pv.chance >= 50 : false, empireColorOf(state.you))
     hideTerritoryBar()
     selTid = null
@@ -458,12 +487,14 @@ function showEnemyBar(id) {
   })
   const updatePv = () => {
     const sid = Number(sel.value)
-    const pv = attackPreview(sid, id)
+    const amount = Math.max(1, Math.min(parseInt(amt.value) || 50, state.territories[sid]?.army || 1))
+    const pv = attackPreview(sid, id, amount)
     const st = state.territories[sid]
-    pvEl.textContent = pv ? `⚔️${pv.atk} vs ⚔️${pv.def} — ${pv.chance}% (${st?.army||0} soldats)` : ''
+    pvEl.textContent = pv ? `⚔️${pv.atk} vs ⚔️${pv.def} — ${pv.chance}% (${st?.army||0} dispo, ${amount} envoyés)` : ''
     attackBtn.classList.toggle('disabled', !pv || pv.atk <= 0)
   }
   sel.onchange = updatePv
+  amt.oninput = updatePv
   bar.appendChild(attackBtn)
   updatePv()
   bar.appendChild(tbBtn('✕', 'tb-close', () => hideTerritoryBar()))
