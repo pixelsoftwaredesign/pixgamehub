@@ -138,9 +138,10 @@ function showToast(text, type='info') {
 function handleBattle(b) {
   if (!b) return
   if (window.GlobeAPI) {
-    GlobeAPI.spawnBattleParticles(b.territory, b.attackerWins)
+    const aHex = empireColorOf(b.attacker)
+    GlobeAPI.spawnBattleParticles(b.territory, b.attackerWins, aHex)
     if (b.fromTid !== undefined && b.toTid !== undefined) {
-      GlobeAPI.spawnAttackProjectile(b.fromTid, b.toTid, b.attackerWins)
+      GlobeAPI.spawnAttackProjectile(b.fromTid, b.toTid, b.attackerWins, aHex)
       GlobeAPI.flashTerritory(b.toTid, b.attackerWins ? 0xffffff : 0xff2222)
     }
   }
@@ -272,7 +273,7 @@ function handleEnemyDoubleClick(id) {
   if (fromId === null) return
   const pv = attackPreview(fromId, id)
   send('attack', {tid: fromId, to: id})
-  if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(fromId, id, pv ? pv.chance >= 50 : false)
+  if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(fromId, id, pv ? pv.chance >= 50 : false, empireColorOf(state.you))
   hideTerritoryBar()
   selTid = null
   GlobeAPI.clearSelection()
@@ -379,7 +380,7 @@ function showTerritoryBar(id) {
       const pct = chance >= 60 ? 'pct-high' : (chance >= 35 ? 'pct-mid' : 'pct-low')
       const b = btn(`⚔️ ${en.name} (${pv ? `⚔️${pv.atk} vs ⚔️${pv.def} — ` : ''}${chance}%)`, 'tb-btn tb-attack', () => {
         send('attack', {tid: id, to: en.id})
-        if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(id, en.id, chance >= 50)
+        if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(id, en.id, chance >= 50, empireColorOf(state.you))
         hideTerritoryBar()
         selTid = null
         GlobeAPI.clearSelection()
@@ -450,7 +451,7 @@ function showEnemyBar(id) {
     const sid = Number(sel.value)
     const pv = attackPreview(sid, id)
     send('attack', {tid: sid, to: id})
-    if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(sid, id, pv ? pv.chance >= 50 : false)
+    if (window.GlobeAPI) GlobeAPI.spawnAttackProjectile(sid, id, pv ? pv.chance >= 50 : false, empireColorOf(state.you))
     hideTerritoryBar()
     selTid = null
     GlobeAPI.clearSelection()

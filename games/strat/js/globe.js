@@ -680,7 +680,7 @@ class Globe3D {
       if (p >= 1) { clearInterval(animId); mat.color.copy(base) }
     }, 16)
   }
-  spawnBattleParticles(territoryName, attackerWins) {
+  spawnBattleParticles(territoryName, attackerWins, colorHex) {
     const t = TERRITORIES.find(x => x.name === territoryName)
     if (!t) return
     const count = 60
@@ -688,12 +688,13 @@ class Globe3D {
     const positions = new Float32Array(count * 3)
     const colors = new Float32Array(count * 3)
     const vels = []
+    const pColor = colorHex ? new THREE.Color(colorHex) : (attackerWins ? 0xffd700 : 0xe74c3c)
     for (let i = 0; i < count; i++) {
       const spread = 8
       positions[i * 3] = t.pos.x + (Math.random() - 0.5) * spread
       positions[i * 3 + 1] = t.pos.y + (Math.random() - 0.5) * spread
       positions[i * 3 + 2] = t.pos.z + (Math.random() - 0.5) * spread
-      const c = attackerWins ? new THREE.Color(0xffd700) : new THREE.Color(0xe74c3c)
+      const c = pColor
       colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b
       vels.push({ x: (Math.random() - 0.5) * 0.08, y: (Math.random() - 0.5) * 0.08, z: (Math.random() - 0.5) * 0.08 })
     }
@@ -722,13 +723,13 @@ class Globe3D {
   }
 
   // ─── Attack projectile (arc from → to) ───────────────────────────
-  spawnAttackProjectile(fromTid, toTid, attackerWins) {
+  spawnAttackProjectile(fromTid, toTid, attackerWins, colorHex) {
     const a = TERRITORIES.find(x => x.id === fromTid)
     const b = TERRITORIES.find(x => x.id === toTid)
     if (!a || !b) return
     const p1 = a.pos.clone().normalize().multiplyScalar(RADIUS * 0.985)
     const p2 = b.pos.clone().normalize().multiplyScalar(RADIUS * 0.985)
-    const color = attackerWins ? 0xffd700 : 0xff5522
+    const color = colorHex ? new THREE.Color(colorHex) : (attackerWins ? 0xffd700 : 0xff5522)
 
     const arcPts = []
     const steps = 28
@@ -780,8 +781,8 @@ class Globe3D {
         dot.geometry.dispose(); dotMat.dispose()
         trail.geometry.dispose(); trailMat.dispose()
         const impact = b.pos.clone().normalize().multiplyScalar(RADIUS * 0.985)
-        this._impactBurst(impact, attackerWins)
-        this._captureFlash(b.pos.clone().normalize().multiplyScalar(RADIUS * 1.0), attackerWins)
+        this._impactBurst(impact, attackerWins, colorHex)
+        this._captureFlash(b.pos.clone().normalize().multiplyScalar(RADIUS * 1.0), attackerWins, 0.8, colorHex)
       }
     }, 16)
   }
@@ -828,8 +829,8 @@ class Globe3D {
     this._captureFlash(t.pos.clone().normalize().multiplyScalar(RADIUS * 1.0), true, 0.4)
   }
 
-  _impactBurst(pos, attackerWins) {
-    const color = attackerWins ? 0xffd700 : 0xff5522
+  _impactBurst(pos, attackerWins, colorHex) {
+    const color = colorHex ? new THREE.Color(colorHex) : (attackerWins ? 0xffd700 : 0xff5522)
     // Bright expanding flash sphere
     const flashGeo = new THREE.SphereGeometry(0.09, 12, 10)
     const flashMat = new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })
@@ -876,8 +877,8 @@ class Globe3D {
     }, 16)
   }
 
-  _captureFlash(pos, attackerWins, maxOpacity = 0.8) {
-    const color = attackerWins ? 0xffd700 : 0xff5533
+  _captureFlash(pos, attackerWins, maxOpacity = 0.8, colorHex) {
+    const color = colorHex ? new THREE.Color(colorHex) : (attackerWins ? 0xffd700 : 0xff5533)
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(0.2, 0.4, 32),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })
@@ -999,8 +1000,8 @@ window.GlobeAPI = {
   selectTerritory: (id) => globe.selectTerritory(id),
   clearSelection: () => globe.clearSelection(),
   hitTest: (x, y) => globe._hitTest(x, y),
-  spawnBattleParticles: (name, win) => globe.spawnBattleParticles(name, win),
-  spawnAttackProjectile: (from, to, win) => globe.spawnAttackProjectile(from, to, win),
+  spawnBattleParticles: (name, win, colorHex) => globe.spawnBattleParticles(name, win, colorHex),
+  spawnAttackProjectile: (from, to, win, colorHex) => globe.spawnAttackProjectile(from, to, win, colorHex),
   flashTerritory: (tid, hex, dur) => globe.flashTerritory(tid, hex, dur),
   spawnMoveAnimation: (from, to) => globe.spawnMoveAnimation(from, to),
   spawnRecruitEffect: (tid) => globe.spawnRecruitEffect(tid),
