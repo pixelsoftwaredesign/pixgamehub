@@ -431,6 +431,7 @@ function updateHUD() {
   } else {
     empEl.style.display = 'none'
   }
+  updateLegend(myEmp)
   document.getElementById('hud-gold').textContent = `💰${me.gold||0}`
   document.getElementById('hud-food').textContent = `🌾${me.food||0}`
   document.getElementById('hud-wood').textContent = `🪵${me.wood||0}`
@@ -452,6 +453,36 @@ function updateHUD() {
 }
 
 function endTurn() { send('ready') }
+
+function toggleLegend() {
+  const leg = document.getElementById('empire-legend')
+  const show = leg.style.display === 'none'
+  leg.style.display = show ? 'block' : 'none'
+  document.getElementById('legend-btn').style.background = show ? '#4a3a28' : ''
+  if (show) updateLegend(state.your_empire || '')
+}
+
+function updateLegend(myEmp) {
+  const leg = document.getElementById('empire-legend')
+  if (!leg || leg.style.display === 'none') return
+  const emps = state.empires || {}
+  const terr = state.territories || {}
+  const counts = {}
+  Object.values(terr).forEach(t => { if (t.owner) counts[t.owner] = (counts[t.owner]||0)+1 })
+  const owned = {}
+  Object.entries(emps).forEach(([id, e]) => {
+    owned[id] = (e.players||[]).reduce((s, pid) => s + (counts[pid]||0), 0)
+  })
+  leg.innerHTML = `<h4>🎨 Empires</h4>` +
+    Object.entries(emps).map(([id, e]) => {
+      const mine = myEmp && id === myEmp
+      return `<div class="legend-row${mine ? ' you' : ''}">
+        <span class="swatch" style="background:${e.color}"></span>
+        <span class="ename">${e.icon} ${e.name}</span>
+        <span style="color:${mine ? '#7dffa0' : '#8a9a7a'}">${owned[id]}</span>
+      </div>`
+    }).join('')
+}
 
 function toggleRotation() {
   const btn = document.getElementById('rotate-btn')

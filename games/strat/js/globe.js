@@ -377,7 +377,7 @@ class Globe3D {
       const owner = td ? td.owner : null
       const empHex = empireHex(state, owner)
       const color = empHex ? new THREE.Color(empHex) : new THREE.Color(0x222233)
-      const mesh = createVoronoiMesh(t, color, owner ? 0.32 : 0.05)
+      const mesh = createVoronoiMesh(t, color, owner ? 0.5 : 0.05)
       if (mesh) {
         mesh.renderOrder = -1
         mesh.userData.territoryId = t.id
