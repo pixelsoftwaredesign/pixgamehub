@@ -566,6 +566,7 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
 # ─── WebSocket ─────────────────────────────────────────────────────
 _pid_counter = 0
+_last_pid = {}
 
 async def ws_handler(conn):
     global _pid_counter
@@ -579,8 +580,14 @@ async def ws_handler(conn):
                 empire = data.get('empire', 'carthage')
                 if empire not in EMPIRE_DATA:
                     empire = 'carthage'
-                _pid_counter += 1
-                pid = f'p{_pid_counter}'
+                # Reconnect: reuse the last pid for this name so ownership is kept
+                last = _last_pid.get(name)
+                if last is not None and last not in game.players:
+                    pid = last
+                else:
+                    _pid_counter += 1
+                    pid = f'p{_pid_counter}'
+                _last_pid[name] = pid
                 game.players[pid] = {'name':name, '_pid':pid, 'conn':conn, 'empire':empire,
                     'gold':0, 'food':0, 'wood':0, 'stone':0, 'ready':False}
                 if len(game.players) >= 2 and game.phase == 'waiting':
