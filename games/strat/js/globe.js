@@ -507,7 +507,12 @@ class Globe3D {
       this._pointerDown = { x: e.clientX, y: e.clientY, time: Date.now() }
       if (e.button === 2) {
         const hit = this._hitTest(e.clientX, e.clientY)
-        if (hit !== null && window.handleOpenCity) {
+        if (hit === null) return
+        const td = this.state?.territories ? this.state.territories[hit] : null
+        const enemy = td && td.owner && td.owner !== this.state.you && !isAlly(this.state, td.owner)
+        if (enemy && window.handleEnemyDoubleClick) {
+          window.handleEnemyDoubleClick(hit)
+        } else if (window.handleOpenCity) {
           window.handleOpenCity(hit)
         }
       }
