@@ -470,7 +470,7 @@ function showEnemyBar(id) {
   amt.max = sources.length ? (sources[0].army || 0) : 1
   amt.value = Math.max(1, Math.floor((sources[0]?.army || 0) * 0.7))
   amt.className = 'tb-amount'
-  amt.title = 'Soldats engagés dans l'attaque'
+  amt.title = "Soldats engagés dans l'attaque"
   bar.appendChild(amt)
   const pvEl = document.createElement('span')
   pvEl.className = 'terr-bar-info'
