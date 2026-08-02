@@ -121,10 +121,12 @@ class StratGame:
         info = EMPIRE_DATA.get(eid)
         if not info or not pids:
             return
+        # Soldats de départ: 100 × nb joueurs + 20% (plus de joueurs = plus de soldats)
+        base_army = int(100 * max(1, len(self.players)) * 1.2)
         cap_tid = info['capital']
         cap_t = self.territories[cap_tid]
         cap_t['owner'] = pids[0]
-        cap_t['army'] = 100
+        cap_t['army'] = base_army
         cap_t['pop'] = 5000
         cap_t['grid'] = self._make_grid()
         cap_t['home'] = eid
@@ -133,7 +135,7 @@ class StratGame:
         for i, tid in enumerate(rest):
             t = self.territories[tid]
             t['owner'] = pids[i % len(pids)]
-            t['army'] = 100
+            t['army'] = base_army
             t['pop'] = 1000
             t['grid'] = self._make_grid()
 
@@ -169,15 +171,21 @@ class StratGame:
                         if t.get('home') == empire)
         if not owns_home:
             self._empire_setup(empire, members)
-            return
-        cap = EMPIRE_DATA.get(empire, {}).get('capital')
-        home_owned = [tid for tid, t in self.territories.items()
-                      if t.get('home') == empire and t['owner'] in members]
-        rest = [tid for tid in home_owned if tid != cap]
-        for i, tid in enumerate(rest):
-            self.territories[tid]['owner'] = members[i % len(members)]
-        if cap is not None and self.territories[cap].get('home') == empire:
-            self.territories[cap]['owner'] = members[0]
+        else:
+            cap = EMPIRE_DATA.get(empire, {}).get('capital')
+            home_owned = [tid for tid, t in self.territories.items()
+                          if t.get('home') == empire and t['owner'] in members]
+            rest = [tid for tid in home_owned if tid != cap]
+            for i, tid in enumerate(rest):
+                self.territories[tid]['owner'] = members[i % len(members)]
+            if cap is not None and self.territories[cap].get('home') == empire:
+                self.territories[cap]['owner'] = members[0]
+        # Soldats de départ recalculés pour le nouveau nombre de joueurs (début de partie)
+        if self.turn <= 1:
+            base = int(100 * len(self.players) * 1.2)
+            for t in self.territories.values():
+                if t['owner']:
+                    t['army'] = base
 
     def _make_grid(self):
         """8x8 interior grid"""
