@@ -85,9 +85,13 @@ function wsUrl() {
 
 function connectWS(name, empire) {
   document.getElementById('login-status').textContent = 'Connexion...'
-  ws = new WebSocket(wsUrl())
-  ws.onopen = () => { ws.send(JSON.stringify({action:'join',name,empire})) }
-  ws.onmessage = e => {
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    try { ws.close() } catch (e) {}
+  }
+  const sock = new WebSocket(wsUrl())
+  ws = sock
+  sock.onopen = () => { if (sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify({action:'join',name,empire})) }
+  sock.onmessage = e => {
     let msg = JSON.parse(e.data)
     if (msg.action === 'state') {
       let raw = msg.state
@@ -108,7 +112,7 @@ function connectWS(name, empire) {
     if (msg.action === 'error') { showToast('⚠️ ' + msg.error, 'error') }
     if (msg.action === 'game_over') { alert('🏆 '+msg.winnerName+' a gagné!') }
   }
-  ws.onclose = () => { document.getElementById('login-status').textContent='Déconnecté' }
+  sock.onclose = () => { document.getElementById('login-status').textContent='Déconnecté' }
 }
 
 function send(cmd, data={}) {
