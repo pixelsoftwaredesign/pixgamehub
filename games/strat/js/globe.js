@@ -291,6 +291,7 @@ class Globe3D {
     window.addEventListener('resize', this._onResize)
 
     this._shake = 0
+    this._spinAxis = new THREE.Vector3(0, 0, 1)
     this._running = true
     this._animate = () => this._renderLoop()
     requestAnimationFrame(this._animate)
@@ -435,15 +436,30 @@ class Globe3D {
       t._mesh = mesh
       this.dotGroup.add(mesh)
 
-      // Visible point marking the exact city position
-      const vdotGeo = new THREE.SphereGeometry(isCap ? 0.11 : 0.07, 14, 10)
-      const vdotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: true, depthWrite: false, transparent: true, opacity: 0.75 })
+      // Visible point marking the exact city position — small, animated in 3D
+      this._vdots = this._vdots || []
+      const vdotGeo = isCap
+        ? new THREE.OctahedronGeometry(0.07, 0)
+        : new THREE.SphereGeometry(0.042, 12, 10)
+      const vdotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: true, depthWrite: false, transparent: true, opacity: 0.85 })
       const vdot = new THREE.Mesh(vdotGeo, vdotMat)
       vdot.renderOrder = 90
       vdot.position.copy(up.clone().multiplyScalar(RADIUS * 0.985))
       vdot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), up)
+      vdot.userData.base = 1
       t._vdot = vdot
       this.pointsGroup.add(vdot)
+      // Additive halo around the point, pulsing in 3D
+      const haloMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false,
+        blending: THREE.AdditiveBlending, depthTest: false,
+      })
+      const halo = new THREE.Mesh(new THREE.SphereGeometry(isCap ? 0.2 : 0.13, 14, 10), haloMat)
+      halo.renderOrder = 89
+      halo.position.copy(vdot.position)
+      this.pointsGroup.add(halo)
+      t._vhalo = halo
+      this._vdots.push({ core: vdot, halo, phase: (t.id * 1.7) % 6.28 })
 
       // City name — glued flat on the globe surface, at the exact city position
       const canvas = document.createElement('canvas')
@@ -582,6 +598,7 @@ class Globe3D {
 
       // Visible city point, colored by owner (or by its home empire)
       t._vdot.material.color.copy(owner ? color.clone() : new THREE.Color(homeHex(t) || 0xffffff))
+      t._vhalo.material.color.copy(t._vdot.material.color)
 
       // Transparent circle colored by owner — attached to the map, only when owned
       t._circle.visible = !!owner
@@ -636,14 +653,15 @@ class Globe3D {
         t._glow.material.opacity = 0.5
         t._glow.material.color.set(0xffd700)
         t._vdot.material.color.set(0xffd700)
-        t._vdot.scale.setScalar(1.8)
+        t._vhalo.material.color.set(0xffd700)
+        t._vdot.userData.base = 1.8
         t._circle.visible = true
         t._circle.material.opacity = 0.5
         t._circle.material.color.set(0xffd700)
         t._circle.scale.setScalar(1.25)
       } else {
         t._circle.scale.setScalar(1)
-        t._vdot.scale.setScalar(1)
+        t._vdot.userData.base = 1
         // restore based on state
         const td = this.state?.territories ? this.state.territories[t.id] : null
         const owner = td ? td.owner : null
@@ -655,13 +673,15 @@ class Globe3D {
           t._glow.material.color.set(aColor)
           t._glow.material.opacity = 0.35
           t._vdot.material.color.set(aColor)
-          t._vdot.scale.setScalar(1.4)
+          t._vhalo.material.color.set(aColor)
+          t._vdot.userData.base = 1.4
           t._circle.visible = true
           t._circle.material.opacity = 0.45
         } else {
           t._glow.material.color.copy(color)
           t._glow.material.opacity = owner ? 0.4 : 0.18
-          t._vdot.material.color.copy(owner ? color.clone() : new THREE.Color(homeHex(t) || 0xffffff))
+      t._vdot.material.color.copy(owner ? color.clone() : new THREE.Color(homeHex(t) || 0xffffff))
+      t._vhalo.material.color.copy(t._vdot.material.color)
           t._circle.visible = !!owner
           t._circle.material.opacity = owner ? 0.5 : 0
         }
@@ -1038,6 +1058,23 @@ class Globe3D {
       this._shake *= 0.86
     } else {
       this._shake = 0
+    }
+
+    // Animated city points — 3D pulse + rotating capitals
+    if (this._vdots) {
+      const tt = this.animationTime
+      const spinQ = new THREE.Quaternion().setFromAxisAngle(this._spinAxis, 0.05)
+      for (const d of this._vdots) {
+        const phase = d.phase
+        const pulse = 1 + 0.28 * Math.sin(tt * 2.6 + phase)
+        const base = d.core.userData.base || 1
+        d.core.scale.setScalar(base * pulse)
+        d.halo.scale.setScalar(base * (1.25 + 0.4 * Math.sin(tt * 2.6 + phase + Math.PI)))
+        d.halo.material.opacity = 0.16 + 0.13 * (0.5 + 0.5 * Math.sin(tt * 2.6 + phase + 1.3))
+        if (d.core.geometry.type === 'OctahedronGeometry') {
+          d.core.quaternion.premultiply(spinQ)
+        }
+      }
     }
 
     if (this.clouds) this.clouds.rotation.y += 0.0003
