@@ -311,7 +311,8 @@ class StratGame:
             p['food'] = p.get('food',0) + 10 + n_terr * 3
         for t in self.territories.values():
             if t['owner']:
-                t['army'] = t.get('army',0) + 5
+                growth = max(1, int(t.get('pop', 0) / 200))
+                t['army'] = t.get('army', 0) + growth
         # Check win
         pids = list(self.players.keys())
         for pid in pids:

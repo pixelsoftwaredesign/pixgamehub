@@ -261,7 +261,7 @@ function showTerritoryBar(id) {
   bar.innerHTML = ''
   const info = document.createElement('span')
   info.className = 'terr-bar-info'
-  info.textContent = `📍 ${t?.name} ${t?.cap ? '🏛' : ''} — 👥${td?.pop||0} ⚔️${td?.army||0}`
+  info.textContent = `📍 ${t?.name} ${t?.cap ? '🏛' : ''} — 👥${td?.pop||0} ⚔️${td?.army||0} (+${Math.max(1, Math.floor((td?.pop||0)/200))}/tour)`
   bar.appendChild(info)
 
   const btn = tbBtn
