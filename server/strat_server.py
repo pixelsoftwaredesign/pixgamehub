@@ -19,6 +19,15 @@ ROOT = Path(__file__).resolve().parent.parent
 # ─── Territory data (world map — single source: server/worldmap.py) ──────
 from worldmap import EMPIRE_DATA, TERRITORIES
 
+# ─── Unit types (conversion coût en soldats + puissance d'attaque/défense) ─
+UNIT_STATS = {
+    'soldier':  {'name': 'Soldat',   'icon': '🗡️', 'a': 1.0, 'd': 1.0, 'cost': 1},
+    'cavalry':  {'name': 'Cavalier', 'icon': '🐴', 'a': 2.5, 'd': 1.5, 'cost': 2},
+    'elephant': {'name': 'Éléphant', 'icon': '🐘', 'a': 5.0, 'd': 4.0, 'cost': 5},
+    'camel':    {'name': 'Chameau',  'icon': '🐫', 'a': 3.0, 'd': 2.5, 'cost': 3},
+    'navy':     {'name': 'Navire',   'icon': '🚢', 'a': 2.0, 'd': 2.0, 'cost': 4},
+}
+
 # ─── Game state ────────────────────────────────────────────────────
 class StratGame:
     def __init__(self):
@@ -26,12 +35,12 @@ class StratGame:
         self.turn = 0
         self.wars = {}          # empire -> set(empires) — guerre permanente, symétrique
         self.phase = 'waiting'  # waiting | playing | done
-        self.territories = {}   # tid -> {owner, army, pop, grid, buildings}
+        self.territories = {}   # tid -> {owner, army, units, pop, grid, buildings}
         for t in TERRITORIES:
             self.territories[t['id']] = {
                 'name': t['name'], 'lon': t['lon'], 'lat': t['lat'],
                 'cap': t.get('cap', False), 'adj': t['adj'], 'home': t.get('home'),
-                'owner': None, 'army': 0, 'pop': 0, 'grid': None, 'buildings': []
+                'owner': None, 'army': 0, 'units': {}, 'pop': 0, 'grid': None, 'buildings': []
             }
 
     def to_dict(self, pid=None):
@@ -73,6 +82,9 @@ class StratGame:
     def _empire_pids_except(self, empire, except_pid):
         return [pid for pid in self._empire_pids(empire) if pid != except_pid]
 
+    def _empire_power(self, empire):
+        return sum(self._player_power(pid) for pid in self._empire_pids(empire))
+
     def _at_war(self, a, b):
         return b in self.wars.get(a, set())
 
@@ -93,7 +105,7 @@ class StratGame:
                     'players': pids,
                     'wars': sorted(self.wars.get(eid, set())),
                     'pop': self._empire_pop(eid),
-                    'army': self._empire_army(eid),
+                    'army': self._empire_power(eid),
                 }
         return out
 
@@ -116,6 +128,21 @@ class StratGame:
             t['army'] -= take
             rem -= take
 
+    def _t_units(self, t):
+        return t.setdefault('units', {})
+
+    def _t_atk(self, t):
+        """Puissance d'attaque d'un territoire (soldats + unités spéciales)."""
+        return t['army'] + sum(n * UNIT_STATS[u]['a'] for u, n in self._t_units(t).items())
+
+    def _t_def(self, t):
+        """Puissance de défense d'un territoire (soldats + unités spéciales)."""
+        return t['army'] + sum(n * UNIT_STATS[u]['d'] for u, n in self._t_units(t).items())
+
+    def _player_power(self, pid):
+        """Puissance d'attaque totale du joueur."""
+        return sum(self._t_atk(t) for t in self.territories.values() if t['owner'] == pid)
+
     def _empire_setup(self, eid, pids):
         """Give one empire its capital + home territories, split round-robin among members"""
         info = EMPIRE_DATA.get(eid)
@@ -127,6 +154,7 @@ class StratGame:
         cap_t = self.territories[cap_tid]
         cap_t['owner'] = pids[0]
         cap_t['army'] = base_army
+        cap_t['units'] = {}
         cap_t['pop'] = 5000
         cap_t['grid'] = self._make_grid()
         cap_t['home'] = eid
@@ -136,6 +164,7 @@ class StratGame:
             t = self.territories[tid]
             t['owner'] = pids[i % len(pids)]
             t['army'] = base_army
+            t['units'] = {}
             t['pop'] = 1000
             t['grid'] = self._make_grid()
 
@@ -186,6 +215,7 @@ class StratGame:
             for t in self.territories.values():
                 if t['owner']:
                     t['army'] = base
+                    t['units'] = {}
 
     def _make_grid(self):
         """8x8 interior grid"""
@@ -223,6 +253,22 @@ class StratGame:
             t['army'] = t.get('army', 0) + amt
             return {'ok': True, **self.to_dict(pid)}
 
+        if cmd == 'convert':
+            unit = data.get('unit')
+            st = UNIT_STATS.get(unit)
+            if not st:
+                return {'error': 'Unité inconnue'}
+            try:
+                amount = max(1, int(data.get('amount', 1)))
+            except (TypeError, ValueError):
+                return {'error': 'Montant invalide'}
+            need = st['cost'] * amount
+            if t['army'] < need:
+                return {'error': f'Pas assez de soldats ({need} requis)'}
+            t['army'] -= need
+            self._t_units(t)[unit] = self._t_units(t).get(unit, 0) + amount
+            return {'ok': True, **self.to_dict(pid)}
+
         if cmd == 'attack':
             try:
                 to_tid = int(data.get('to'))
@@ -240,50 +286,68 @@ class StratGame:
                     self._declare_war(my_empire, def_empire)
                     self._broadcast({'action':'war','war':{
                         'declared': my_empire, 'target': def_empire}})
-            if t['army'] < 10:
-                return {'error': 'Pas assez de soldats'}
+
+            utype = data.get('type') or 'soldier'
+            st = UNIT_STATS.get(utype)
+            if not st:
+                return {'error': 'Unité inconnue'}
+            pool = t['army'] if utype == 'soldier' else self._t_units(t).get(utype, 0)
+            if pool < 1:
+                return {'error': 'Pas assez de cette unité'}
 
             amt = data.get('amount')
             if amt is None:
-                atk = int(t['army'] * 0.7)
+                if utype == 'soldier':
+                    atk = int(t['army'] * 0.7)
+                else:
+                    atk = pool
             else:
                 try:
-                    atk = max(1, min(int(amt), t['army']))
+                    atk = max(1, min(int(amt), pool))
                 except (TypeError, ValueError):
                     return {'error': 'Montant invalide'}
             atk_src = atk
-            t['army'] -= atk
+            if utype == 'soldier':
+                t['army'] -= atk
+            else:
+                self._t_units(t)[utype] = max(0, self._t_units(t).get(utype, 0) - atk)
             atk_assist = 0
             for ally_pid in self._empire_pids_except(my_empire, pid):
-                take = int(self._player_army(ally_pid) * 0.2)
+                take = int(self._player_power(ally_pid) * 0.2)
                 if take > 0:
                     self._take_army(ally_pid, take)
                     atk_assist += take
-            atk += atk_assist
 
-            def_power = to_t['army'] * (1 + to_t.get('fort', 0) * 0.2)
+            def_power = self._t_def(to_t) * (1 + to_t.get('fort', 0) * 0.2)
             def_assist = 0
             if to_t['owner'] and to_t['owner'] in self.players:
                 for ally_pid in self._empire_pids_except(self._empire_of(to_t['owner']), to_t['owner']):
-                    take = int(self._player_army(ally_pid) * 0.2)
+                    take = int(self._player_power(ally_pid) * 0.2)
                     if take > 0:
                         self._take_army(ally_pid, take)
                         def_assist += take
             def_power += def_assist
 
-            atk_power = atk * (0.8 + 0.4 * random.random())
+            atk_power = atk * st['a'] * (0.8 + 0.4 * random.random()) + atk_assist
             if atk_power > def_power:
                 old_owner = to_t['owner']
+                raw_def = to_t['army'] + sum(self._t_units(to_t).values())
                 to_t['owner'] = pid
-                to_t['army'] = max(1, atk - to_t['army'])
+                leftover = max(1, atk - raw_def)
+                if utype == 'soldier':
+                    to_t['army'] = leftover
+                    to_t['units'] = {}
+                else:
+                    to_t['army'] = 0
+                    to_t['units'] = {utype: leftover}
                 if not to_t['grid']:
                     to_t['grid'] = self._make_grid()
                 self._broadcast({'action':'battle','battle':{
                     'territory':to_t['name'],'attackerWins':True,
                     'attacker':pid,'defender':old_owner,
                     'fromTid':tid,'toTid':to_tid,
-                    'amount':atk_src,
-                    'atkLosses':atk - t['army'],'defLosses':to_t['army'],
+                    'unit':utype, 'amount':atk_src,
+                    'atkLosses':atk - leftover,'defLosses':raw_def,
                     'atkAssist':atk_assist,'defAssist':def_assist
                 }})
             else:
@@ -291,7 +355,7 @@ class StratGame:
                     'territory':to_t['name'],'attackerWins':False,
                     'attacker':pid,'defender':to_t['owner'],
                     'fromTid':tid,'toTid':to_tid,
-                    'amount':atk_src,
+                    'unit':utype, 'amount':atk_src,
                     'atkLosses':atk,'defLosses':int(def_power * 0.3),
                     'atkAssist':atk_assist,'defAssist':def_assist
                 }})

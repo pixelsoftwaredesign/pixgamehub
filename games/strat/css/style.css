@@ -99,6 +99,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a24;color:#eee;f
 .tb-btn.disabled{opacity:0.4;cursor:not-allowed}
 .tb-attack{border-color:#b04040}
 .tb-attack:hover:not(.disabled){background:#5a2a2a}
+.tb-conv{border-color:#6a5a8a}
+.tb-conv:hover:not(.disabled){background:#3a3a5a}
 .tb-move{border-color:#3a9a5a}
 .tb-move:hover:not(.disabled){background:#2a5a3a}
 .tb-amount{width:64px;background:#1a1218;border:1px solid #6a5a4a;color:#f0e0c0;border-radius:6px;padding:6px 8px;font-size:12px;text-align:center}
