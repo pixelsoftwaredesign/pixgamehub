@@ -11,6 +11,9 @@ function empireHex(state, owner) {
   const emp = state.players[owner]?.empire
   return (emp && EMPIRES[emp]) ? EMPIRES[emp].color : null
 }
+function homeHex(t) {
+  return (t.home && EMPIRES[t.home]) ? EMPIRES[t.home].color : null
+}
 function isAlly(state, owner) {
   if (!owner || !state || !state.you) return false
   return state.players[owner]?.empire === state.players[state.you]?.empire
@@ -433,7 +436,7 @@ class Globe3D {
 
       // Visible point marking the exact city position
       const vdotGeo = new THREE.SphereGeometry(isCap ? 0.11 : 0.07, 14, 10)
-      const vdotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: true, depthWrite: false, transparent: true, opacity: 0.4 })
+      const vdotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: true, depthWrite: false, transparent: true, opacity: 0.75 })
       const vdot = new THREE.Mesh(vdotGeo, vdotMat)
       vdot.renderOrder = 90
       vdot.position.copy(up.clone().multiplyScalar(RADIUS * 0.985))
@@ -568,11 +571,11 @@ class Globe3D {
       const color = empHex ? new THREE.Color(empHex) : new THREE.Color(0x444444)
 
       // Glow colored by owner (colored light)
-      t._glow.material.color.copy(color)
-      t._glow.material.opacity = owner ? 0.22 : 0.1
+      t._glow.material.color.copy(owner ? color.clone() : new THREE.Color(homeHex(t) || 0x444444))
+      t._glow.material.opacity = owner ? 0.22 : 0.12
 
-      // Visible city point, colored by owner
-      t._vdot.material.color.copy(owner ? color.clone() : new THREE.Color(0xffffff))
+      // Visible city point, colored by owner (or by its home empire)
+      t._vdot.material.color.copy(owner ? color.clone() : new THREE.Color(homeHex(t) || 0xffffff))
 
       // Transparent circle colored by owner — attached to the map, only when owned
       t._circle.visible = !!owner
@@ -639,7 +642,7 @@ class Globe3D {
         const td = this.state?.territories ? this.state.territories[t.id] : null
         const owner = td ? td.owner : null
         const empHex = empireHex(this.state, owner)
-        const color = empHex ? new THREE.Color(empHex) : new THREE.Color(0x444444)
+        const color = empHex ? new THREE.Color(empHex) : new THREE.Color(homeHex(t) || 0x444444)
         if (isAdj) {
           const aOwner = this.state?.territories ? this.state.territories[t.id]?.owner : null
           const aColor = aOwner && isAlly(this.state, aOwner) ? 0x2ecc71 : 0xff4444
@@ -652,7 +655,7 @@ class Globe3D {
         } else {
           t._glow.material.color.copy(color)
           t._glow.material.opacity = owner ? 0.4 : 0.18
-          t._vdot.material.color.copy(owner ? color.clone() : new THREE.Color(0xffffff))
+          t._vdot.material.color.copy(owner ? color.clone() : new THREE.Color(homeHex(t) || 0xffffff))
           t._circle.visible = !!owner
           t._circle.material.opacity = owner ? 0.5 : 0
         }
