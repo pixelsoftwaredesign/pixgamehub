@@ -4,7 +4,7 @@
 
 import { $, fmt, GID, ST, empInfo, ownerColor, empireOf, terrainProfile, unitsOf, tDef } from './modules/state.js?v=2';
 import { bpRun } from './modules/blueprint.js?v=2';
-import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx, launchAttackFx } from './modules/motion.js?v=15';
+import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx, launchAttackFx } from './modules/motion.js?v=16';
 import { t as tr, tErr, tBot, applyLang, setLang, terrName, cityHist, empireHist } from './modules/i18n.js?v=7';
 
 /* ─── Chargement initial : on récupère la config (empires) pour l'écran de login ─── */
@@ -97,7 +97,7 @@ function onMsg(m) {
   } else if (m.action === 'battle') {
     const b = m.battle;
     const mine = ST.pendingAttacks.delete(String(b.fromTid) + ':' + String(b.toTid));
-    playBattleFx(b.fromTid, b.toTid, b.attackerWins, !mine);
+    fxBattle(b.fromTid, b.toTid, b.attackerWins, !mine);
     banner(b.attackerWins ? '⚔️ ' + b.territory + ' ' + tr('battle.conquered') : '🛡️ ' + tr('battle.defended') + ' ' + b.territory, b.attackerWins ? 'victory' : 'defeat');
     toast(tr('battle.result', { result: b.attackerWins ? tr('battle.won') : tr('battle.lost'), losses: fmt(b.attackerWins ? b.atkLosses : b.defLosses) }), b.attackerWins ? 'win' : 'lose');
     bpRun('onBattle', { ...b, won: (b.attackerWins ? b.attacker === ST.myEmpire : b.attacker !== ST.myEmpire) });
@@ -244,6 +244,97 @@ function renderMap() {
     const lab = t.owner && empireOf(t) === ST.myEmpire ? `${nm} ${fmt(t.army || 0)}` : nm;
     ctx.fillText(lab, x, y - r - 4);
   }
+}
+
+/* ─── Effets d'attaque en vue 2D (projectiles + explosions) ───
+   Rendu sur un canvas superposé (#fx-canvas) pour que les attaques soient
+   visibles même quand la vue 3D n'est pas active. */
+function fxPx(tid) { return ST.mapPx[tid] || null; }
+
+function launchFx2d(fromTid, toTid, color) {
+  const A = fxPx(fromTid), B = fxPx(toTid);
+  if (!A || !B || ST.view3d) return;
+  ST.fx2d.push({ type: 'proj', A, B, color, t0: performance.now(), dur: 650 });
+  startFx2d();
+}
+
+function boomFx2d(tid, color, scale) {
+  const P = fxPx(tid);
+  if (!P || ST.view3d) return;
+  ST.fx2d.push({ type: 'boom', P, color, scale: scale || 1, t0: performance.now(), dur: 850 });
+  startFx2d();
+}
+
+function startFx2d() {
+  if (ST.fx2dId) return;
+  const loop = () => {
+    drawFx2d();
+    ST.fx2d = ST.fx2d.filter(f => performance.now() - f.t0 < f.dur);
+    ST.fx2dId = ST.fx2d.length ? requestAnimationFrame(loop) : null;
+  };
+  ST.fx2dId = requestAnimationFrame(loop);
+}
+
+function drawFx2d() {
+  const cv = $('fx-canvas');
+  if (!cv) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (W === 0 || H === 0) return;
+  if (cv.width !== W * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  if (ST.view3d) { ST.fx2d = []; return; }
+  const now = performance.now();
+  for (const f of ST.fx2d) {
+    const k = Math.min(1, (now - f.t0) / f.dur);
+    if (f.type === 'proj') {
+      const A = f.A, B = f.B;
+      const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2 - Math.hypot(B.x - A.x, B.y - A.y) * 0.25;
+      const q = (tt) => [
+        (1 - tt) * (1 - tt) * A.x + 2 * (1 - tt) * tt * mx + tt * tt * B.x,
+        (1 - tt) * (1 - tt) * A.y + 2 * (1 - tt) * tt * my + tt * tt * B.y,
+      ];
+      const [px, py] = q(k);
+      ctx.strokeStyle = f.color;
+      ctx.globalAlpha = Math.max(0, 0.9 - k * 0.5);
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      for (let i = 0; i <= 12; i++) {
+        const tt = Math.max(0, k - (12 - i) * 0.012);
+        const [qx, qy] = q(tt);
+        if (i === 0) ctx.moveTo(qx, qy); else ctx.lineTo(qx, qy);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI * 2); ctx.fill();
+    } else {
+      const r = 6 + k * 46 * (f.scale || 1);
+      ctx.strokeStyle = f.color;
+      ctx.globalAlpha = Math.max(0, 1 - k);
+      ctx.lineWidth = 4 * (1 - k) + 1;
+      ctx.beginPath(); ctx.arc(f.P.x, f.P.y, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = Math.max(0, 0.9 * (1 - k * 1.5));
+      ctx.fillStyle = f.color;
+      ctx.beginPath(); ctx.arc(f.P.x, f.P.y, r * 0.55, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+/* Lance les effets d'une attaque dans la vue active (2D et/ou 3D). */
+function fxLaunch(fromTid, toTid) {
+  launchAttackFx(fromTid, toTid);           // 3D (ignoré si vue 2D)
+  launchFx2d(fromTid, toTid, '#ffd34a');    // 2D
+}
+
+function fxBattle(fromTid, toTid, won, projectile) {
+  const color = won ? '#ffd34a' : '#ff5040';
+  playBattleFx(fromTid, toTid, won, projectile);  // 3D
+  boomFx2d(toTid, color, 1);                       // 2D explosion
+  if (projectile) launchFx2d(fromTid, toTid, color);
 }
 
 $('map-canvas').addEventListener('click', e => {
@@ -469,7 +560,7 @@ function doAttack() {
   }
   if (!Object.keys(units).length) { toast(tr('terr.noUnitsSent'), 'error'); return; }
   ST.pendingAttacks.add(ST.selected + ':' + ST.pendingAttack.to);
-  launchAttackFx(ST.selected, ST.pendingAttack.to);
+  fxLaunch(ST.selected, ST.pendingAttack.to);
   send('attack', { to: ST.pendingAttack.to, units });
 }
 
@@ -620,7 +711,7 @@ function banner(text, type) {
 }
 
 /* ─── Exports pour les modules (state, blueprint, motion) ─── */
-export { send, toast, banner, selectTerr, renderMap };
+export { send, toast, banner, selectTerr, renderMap, fxLaunch, fxBattle };
 
 window.__onLangChange = () => {
   if (ST.state && ST.myEmpire) render();

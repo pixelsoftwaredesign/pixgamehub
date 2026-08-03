@@ -14,6 +14,8 @@ export const ST = {
   selected: null,         // territoire sélectionné
   pendingAttack: null,    // {to: tid}
   pendingAttacks: new Set(),  // "from:to" des attaques lancées par le joueur
+  fx2d: [],               // effets d'attaque 2D (projectiles + explosions)
+  fx2dId: null,           // requestAnimationFrame de la boucle d'effets 2D
   pickMode: null,         // 'attack' | 'move' | 'convert' | null
   connected: false,
   blueprintCfg: null,     // config.blueprint (moteur de règles bonus)

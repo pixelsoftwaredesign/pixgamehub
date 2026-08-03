@@ -301,11 +301,11 @@ function launchProjectile(c, A, B, color, onHit) {
   const geo = new c.THREE.BufferGeometry();
   geo.setAttribute('position', new c.THREE.BufferAttribute(new Float32Array(N * 3), 3));
   const pts = new c.THREE.Points(geo, new c.THREE.PointsMaterial({
-    color, size: c.opts.radius * 0.04, transparent: true, opacity: 1, depthWrite: false,
+    color, size: c.opts.radius * 0.06, transparent: true, opacity: 1, depthWrite: false,
     blending: c.THREE.AdditiveBlending
   }));
   const head = new c.THREE.Mesh(
-    new c.THREE.SphereGeometry(c.opts.radius * 0.018, 10, 8),
+    new c.THREE.SphereGeometry(c.opts.radius * 0.03, 12, 10),
     new c.THREE.MeshBasicMaterial({
       color: 0xffffff, transparent: true, opacity: 1, depthWrite: false,
       blending: c.THREE.AdditiveBlending
