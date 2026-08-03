@@ -210,7 +210,7 @@ class StrategyEngine:
             'turn': self.turn, 'phase': self.phase,
             'players': {k: {kk: vv for kk, vv in v.items() if kk != 'conn'}
                         for k, v in self.players.items()},
-            'territories': {k: {kk: vv for kk, vv in v.items() if kk not in ('adj', 'home')}
+            'territories': {k: dict({'id': k}, **{kk: vv for kk, vv in v.items() if kk != 'home'})
                             for k, v in self.territories.items()},
             'empires': self._empires_dict(),
             'config': self._client_config(),

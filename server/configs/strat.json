@@ -1696,5 +1696,15 @@
       ]
     }
   ],
-  "apiKey": "phg_priv_789fad30331c1be2db66c0579366e1a8"
+  "apiKey": "phg_priv_789fad30331c1be2db66c0579366e1a8",
+  "render": {
+    "mode": "globe",
+    "globe": {
+      "radius": 1.7,
+      "autorotate": true,
+      "speed": 0.12,
+      "ocean": "#0b3d66",
+      "markerScale": 0.9
+    }
+  }
 }

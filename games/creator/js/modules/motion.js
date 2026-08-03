@@ -96,18 +96,52 @@ export function buildGlobeMarkers() {
     new c.THREE.MeshBasicMaterial({ color: 0x1a2c4a, wireframe: true, transparent: true, opacity: 0.25 })
   ));
   const ts = Object.values(ST.state.territories);
-  if (c.markers.size === ts.length && c.markers.size > 0) { refreshGlobeColors(); return; }
-  c.markers = new Map();
-  const geo = new c.THREE.SphereGeometry(opts.radius * 0.055 * opts.markerScale, 10, 8);
-  for (const t of ts) {
-    const m = new c.THREE.Mesh(geo, new c.THREE.MeshBasicMaterial({ color: 0x555555 }));
-    m.scale.setScalar(t.cap ? 2.0 : 1.0);
-    m.position.copy(ll2xyz(t.lon, t.lat, opts.radius * 1.02, c.THREE));
-    m.userData.tid = t.id;
-    c.group.add(m);
-    c.markers.set(t.id, m);
+  if (c.markers.size !== ts.length || c.markers.size === 0) {
+    c.markers = new Map();
+    const geo = new c.THREE.SphereGeometry(opts.radius * 0.055 * opts.markerScale, 10, 8);
+    for (const t of ts) {
+      const m = new c.THREE.Mesh(geo, new c.THREE.MeshBasicMaterial({ color: 0x555555 }));
+      m.scale.setScalar(t.cap ? 2.0 : 1.0);
+      m.position.copy(ll2xyz(t.lon, t.lat, opts.radius * 1.02, c.THREE));
+      m.userData.tid = t.id;
+      c.markers.set(t.id, m);
+    }
   }
+  for (const m of c.markers.values()) c.group.add(m);
+  buildGlobeLinks(c);
   refreshGlobeColors();
+}
+
+function buildGlobeLinks(c) {
+  const opts = renderOptions();
+  const ts = Object.values(ST.state.territories);
+  const pos = [], col = [], meta = [];
+  const links = new Set();
+  for (const t of ts) (t.adj || []).forEach(a => links.add(t.id < a ? `${t.id}-${a}` : `${a}-${t.id}`));
+  for (const lk of links) {
+    const [a, b] = lk.split('-').map(Number);
+    const ta = ST.state.territories[a], tb = ST.state.territories[b];
+    if (!ta || !tb) continue;
+    const A = ll2xyz(ta.lon, ta.lat, opts.radius * 1.03, c.THREE);
+    const B = ll2xyz(tb.lon, tb.lat, opts.radius * 1.03, c.THREE);
+    const same = ta.owner && tb.owner && empireOf(ta) === empireOf(tb);
+    const rgb = same ? [1, 1, 1] : [0.25, 0.38, 0.55];
+    pos.push(A.x, A.y, A.z, B.x, B.y, B.z);
+    col.push(...rgb, ...rgb);
+    meta.push([a, b]);
+  }
+  if (c.links) c.group.remove(c.links);
+  if (c.linkGeo) c.linkGeo.dispose();
+  if (c.linkMat) c.linkMat.dispose();
+  c.linkMeta = meta;
+  if (!pos.length) { c.links = null; return; }
+  const g = new c.THREE.BufferGeometry();
+  g.setAttribute('position', new c.THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new c.THREE.Float32BufferAttribute(col, 3));
+  const m = new c.THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.6 });
+  c.links = new c.THREE.LineSegments(g, m);
+  c.linkGeo = g; c.linkMat = m;
+  c.group.add(c.links);
 }
 
 export function refreshGlobeColors() {
@@ -117,6 +151,17 @@ export function refreshGlobeColors() {
     const t = ST.state.territories[tid];
     if (!t) continue;
     m.material.color.set(t.owner ? colorOfEmpire(empireOf(t)) : '#6a6f78');
+  }
+  if (c.linkMeta && c.linkGeo) {
+    const col = [];
+    for (const [a, b] of c.linkMeta) {
+      const ta = ST.state.territories[a], tb = ST.state.territories[b];
+      const same = ta && tb && ta.owner && tb.owner && empireOf(ta) === empireOf(tb);
+      const rgb = same ? [1, 1, 1] : [0.25, 0.38, 0.55];
+      col.push(...rgb, ...rgb);
+    }
+    c.linkGeo.setAttribute('color', new c.THREE.Float32BufferAttribute(col, 3));
+    c.linkGeo.attributes.color.needsUpdate = true;
   }
 }
 
