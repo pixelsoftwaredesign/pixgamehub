@@ -4,7 +4,7 @@
 
 import { $, fmt, GID, ST, empInfo, ownerColor, empireOf, terrainProfile, unitsOf, tDef } from './modules/state.js?v=2';
 import { bpRun } from './modules/blueprint.js?v=2';
-import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx } from './modules/motion.js?v=13';
+import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx, launchAttackFx } from './modules/motion.js?v=14';
 import { t as tr, tErr, tBot, applyLang, setLang, terrName, cityHist, empireHist } from './modules/i18n.js?v=6';
 
 /* ─── Chargement initial : on récupère la config (empires) pour l'écran de login ─── */
@@ -467,6 +467,7 @@ function doAttack() {
     if (v > 0) units[uid] = v;
   }
   if (!Object.keys(units).length) { toast(tr('terr.noUnitsSent'), 'error'); return; }
+  launchAttackFx(ST.selected);
   send('attack', { to: ST.pendingAttack.to, units });
 }
 

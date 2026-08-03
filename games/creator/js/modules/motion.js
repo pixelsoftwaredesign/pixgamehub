@@ -248,23 +248,18 @@ function onGlobeResize() {
   c.renderer.setSize(w, h);
 }
 
-export function playBattleFx(fromTid, toTid, won) {
-  const c = ST.threeCtx;
-  if (!c || !ST.view3d || !ST.state || !ST.state.territories) return;
-  const t = ST.state.territories[toTid];
-  const origin = (t && t.lon != null) ? t : ST.state.territories[fromTid];
-  if (!origin || origin.lon == null) return;
-  const pos = ll2xyz(origin.lon, origin.lat, c.opts.radius * 1.05, c.THREE);
-  const color = won ? 0xffd34a : 0xff5040;
+function fxPos(c, t) { return ll2xyz(t.lon, t.lat, c.opts.radius * 1.02, c.THREE); }
+
+function explosion(c, pos, color, scale) {
+  const s = scale || 1;
   const ring = new c.THREE.Mesh(
-    new c.THREE.RingGeometry(0.015, 0.03, 28),
+    new c.THREE.RingGeometry(0.015 * s, 0.03 * s, 28),
     new c.THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, side: c.THREE.DoubleSide, depthWrite: false })
   );
   ring.position.copy(pos);
   ring.lookAt(pos.clone().multiplyScalar(2));
-  const N = 30;
-  const dirs = new Float32Array(N * 3), speeds = new Float32Array(N);
-  const base = new Float32Array(N * 3);
+  const N = s > 1 ? 34 : 22;
+  const dirs = new Float32Array(N * 3), speeds = new Float32Array(N), base = new Float32Array(N * 3);
   for (let i = 0; i < N; i++) {
     const a = Math.random() * Math.PI * 2, b = Math.acos(2 * Math.random() - 1);
     dirs[i * 3] = Math.sin(b) * Math.cos(a);
@@ -276,11 +271,68 @@ export function playBattleFx(fromTid, toTid, won) {
   const pgeo = new c.THREE.BufferGeometry();
   pgeo.setAttribute('position', new c.THREE.BufferAttribute(base.slice(), 3));
   const pts = new c.THREE.Points(pgeo, new c.THREE.PointsMaterial({
-    color, size: 0.055, transparent: true, opacity: 1, depthWrite: false
+    color, size: 0.055 * s, transparent: true, opacity: 1, depthWrite: false,
+    blending: c.THREE.AdditiveBlending
   }));
-  c.scene.add(ring); c.scene.add(pts);
-  c.fx.push({ ring, pts, dirs, speeds, base, age: 0, dur: 1.15 });
+  const flash = new c.THREE.Mesh(
+    new c.THREE.SphereGeometry(0.025 * s, 12, 10),
+    new c.THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0.95, depthWrite: false,
+      blending: c.THREE.AdditiveBlending
+    })
+  );
+  flash.position.copy(pos);
+  c.scene.add(ring); c.scene.add(pts); c.scene.add(flash);
+  c.fx.push({ ring, pts, dirs, speeds, base, flash, scale: s, age: 0, dur: 1.15 });
   if (!c.animId) startGlobeLoop();
+}
+
+function bezi(p0, p1, p2, t, out) {
+  const u = 1 - t;
+  out.x = u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x;
+  out.y = u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y;
+  out.z = u * u * p0.z + 2 * u * t * p1.z + t * t * p2.z;
+}
+
+/* Projectile (bombardement) : traînée lumineuse de la source vers la cible. */
+function launchProjectile(c, A, B, color, onHit) {
+  const mid = A.clone().add(B).multiplyScalar(0.5).normalize().multiplyScalar(c.opts.radius * 1.35);
+  const N = 14;
+  const geo = new c.THREE.BufferGeometry();
+  geo.setAttribute('position', new c.THREE.BufferAttribute(new Float32Array(N * 3), 3));
+  const pts = new c.THREE.Points(geo, new c.THREE.PointsMaterial({
+    color, size: c.opts.radius * 0.04, transparent: true, opacity: 1, depthWrite: false,
+    blending: c.THREE.AdditiveBlending
+  }));
+  const head = new c.THREE.Mesh(
+    new c.THREE.SphereGeometry(c.opts.radius * 0.018, 10, 8),
+    new c.THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 1, depthWrite: false,
+      blending: c.THREE.AdditiveBlending
+    })
+  );
+  c.scene.add(pts); c.scene.add(head);
+  c.fx.push({ type: 'proj', A, B, mid, N, pts, head, color, age: 0, dur: 0.7, onHit });
+  if (!c.animId) startGlobeLoop();
+}
+
+export function playBattleFx(fromTid, toTid, won) {
+  const c = ST.threeCtx;
+  if (!c || !ST.view3d || !ST.state || !ST.state.territories) return;
+  const ta = ST.state.territories[fromTid];
+  const tb = ST.state.territories[toTid];
+  if (!ta || ta.lon == null || !tb || tb.lon == null) return;
+  const A = fxPos(c, ta), B = fxPos(c, tb);
+  launchProjectile(c, A, B, won ? 0xffd34a : 0xff5040, () => explosion(c, B, won ? 0xffd34a : 0xff5040, 1.4));
+}
+
+/* Flash de départ lors de l'envoi d'une attaque (retour immédiat). */
+export function launchAttackFx(fromTid) {
+  const c = ST.threeCtx;
+  if (!c || !ST.view3d || !ST.state || !ST.state.territories) return;
+  const t = ST.state.territories[fromTid];
+  if (!t || t.lon == null) return;
+  explosion(c, fxPos(c, t), 0xffd34a, 0.6);
 }
 
 function tickMarkers(c, t) {
@@ -290,12 +342,37 @@ function tickMarkers(c, t) {
 }
 
 function tickFx(c, dt) {
+  const v = new c.THREE.Vector3();
   for (let i = c.fx.length - 1; i >= 0; i--) {
     const f = c.fx[i];
     f.age += dt;
     const k = Math.min(1, f.age / f.dur);
-    f.ring.scale.setScalar(1 + k * 4.5);
+    if (f.type === 'proj') {
+      bezi(f.A, f.mid, f.B, k, v);
+      f.head.position.copy(v);
+      const arr = f.pts.geometry.attributes.position.array;
+      for (let j = 0; j < f.N; j++) {
+        const tt = Math.max(0, k - (j + 1) * 0.045);
+        bezi(f.A, f.mid, f.B, tt, v);
+        arr[j * 3] = v.x; arr[j * 3 + 1] = v.y; arr[j * 3 + 2] = v.z;
+      }
+      f.pts.geometry.attributes.position.needsUpdate = true;
+      f.pts.material.opacity = Math.max(0, 1 - k * 0.5);
+      if (k >= 1) {
+        c.scene.remove(f.pts); c.scene.remove(f.head);
+        f.pts.geometry.dispose(); f.pts.material.dispose();
+        f.head.geometry.dispose(); f.head.material.dispose();
+        c.fx.splice(i, 1);
+        if (f.onHit) f.onHit();
+      }
+      continue;
+    }
+    f.ring.scale.setScalar((1 + k * 4.5) * (f.scale || 1));
     f.ring.material.opacity = Math.max(0, 1 - k);
+    if (f.flash) {
+      f.flash.scale.setScalar((1 + k * 6) * (f.scale || 1));
+      f.flash.material.opacity = Math.max(0, 0.95 * (1 - k * 1.5));
+    }
     const arr = f.pts.geometry.attributes.position.array;
     for (let j = 0; j < arr.length; j += 3) {
       arr[j] = f.base[j] + f.dirs[j] * f.speeds[j / 3] * k * 1.6;
@@ -305,9 +382,10 @@ function tickFx(c, dt) {
     f.pts.geometry.attributes.position.needsUpdate = true;
     f.pts.material.opacity = Math.max(0, 1 - k);
     if (f.age >= f.dur) {
-      c.scene.remove(f.ring); c.scene.remove(f.pts);
+      c.scene.remove(f.ring); c.scene.remove(f.pts); c.scene.remove(f.flash);
       f.ring.geometry.dispose(); f.ring.material.dispose();
       f.pts.geometry.dispose(); f.pts.material.dispose();
+      if (f.flash) { f.flash.geometry.dispose(); f.flash.material.dispose(); }
       c.fx.splice(i, 1);
     }
   }
