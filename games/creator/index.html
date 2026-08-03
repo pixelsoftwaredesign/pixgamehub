@@ -16,18 +16,26 @@
 
 <div id="login-screen">
   <div class="login-box">
+    <div class="login-topbar">
+      <select id="lang-select" onchange="setLang(this.value)">
+        <option value="fr">🇫🇷 Français</option>
+        <option value="en">🇬🇧 English</option>
+        <option value="ar">🇸🇦 العربية</option>
+        <option value="es">🇪🇸 Español</option>
+      </select>
+    </div>
     <h1 id="login-title">Stratégie</h1>
-    <p class="subtitle">Jeu créé dans le Studio</p>
-    <input id="user-input" type="text" placeholder="Nom d'utilisateur" autocomplete="off">
+    <p class="subtitle" data-i18n="login.subtitle">Jeu créé dans le Studio</p>
+    <input id="user-input" type="text" data-i18n-ph="login.namePh" placeholder="Nom d'utilisateur" autocomplete="off">
     <div class="empire-pick">
-      <div class="empire-pick-title">Choisissez votre empire</div>
+      <div class="empire-pick-title" data-i18n="login.chooseEmpire">Choisissez votre empire</div>
       <div id="empire-buttons"></div>
     </div>
     <div class="btn-row">
-      <button onclick="doJoin()">Rejoindre la partie</button>
+      <button onclick="doJoin()" data-i18n="login.join">Rejoindre la partie</button>
     </div>
     <div id="login-err" class="err"></div>
-    <div id="login-status" class="status">Connexion…</div>
+    <div id="login-status" class="status" data-i18n="login.connecting">Connexion…</div>
   </div>
 </div>
 
@@ -43,9 +51,9 @@
     <span id="hud-pop">👥0</span>
     <span id="hud-terr">🏘0</span>
     <span id="hud-players"></span>
-    <button id="legend-btn" onclick="toggleLegend()">🎨 Empires</button>
-    <button id="war-btn" onclick="toggleWarLog()">⚔️ Guerre</button>
-    <button id="view3d-btn" onclick="toggle3D()">🌐 3D</button>
+    <button id="legend-btn" onclick="toggleLegend()" data-i18n="hud.empires">🎨 Empires</button>
+    <button id="war-btn" onclick="toggleWarLog()" data-i18n="hud.war">⚔️ Guerre</button>
+    <button id="view3d-btn" onclick="toggle3D()" data-i18n="motion.3d">🌐 3D</button>
     <button id="end-turn-btn" onclick="endTurn()">⏭ Fin du tour</button>
   </div>
   <div id="war-log" style="display:none"></div>
@@ -70,6 +78,6 @@
 <div id="toast-box"></div>
 <div id="battle-banner"></div>
 
-<script type="module" src="js/main.js?v=6"></script>
+<script type="module" src="js/main.js?v=11"></script>
 </body>
 </html>

@@ -2,6 +2,9 @@
 html,body{width:100%;height:100%;overflow:hidden;background:#1a1a24;color:#eee;font-family:system-ui,sans-serif}
 
 #login-screen{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#2a2040 0%,#401828 50%,#182840 100%);z-index:2000}
+.login-topbar{position:absolute;top:14px;right:14px}
+#lang-select{background:#2a1a28;border:1px solid #8a7a6a;color:#f0e8d0;padding:6px 10px;border-radius:6px;font-size:13px;outline:none;cursor:pointer}
+#lang-select:focus{border-color:#f0d060}
 .login-box{text-align:center;padding:40px;background:rgba(40,30,50,0.97);border:2px solid #c0a060;border-radius:12px;min-width:340px;box-shadow:0 0 40px rgba(0,0,0,0.5)}
 .login-box h1{color:#f0d060;font-size:32px;letter-spacing:4px;margin-bottom:4px;text-shadow:0 0 10px rgba(240,208,96,0.3)}
 .login-box .subtitle{color:#c0b0a0;font-size:13px;margin-bottom:24px;letter-spacing:2px}

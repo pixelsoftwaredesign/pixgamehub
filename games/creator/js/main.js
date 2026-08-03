@@ -5,28 +5,30 @@
 import { $, fmt, GID, ST, empInfo, ownerColor, empireOf, terrainProfile, unitsOf, tDef } from './modules/state.js?v=2';
 import { bpRun } from './modules/blueprint.js?v=2';
 import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D } from './modules/motion.js?v=2';
+import { t as tr, tErr, tBot, applyLang, setLang } from './modules/i18n.js?v=4';
 
 /* ─── Chargement initial : on récupère la config (empires) pour l'écran de login ─── */
 async function init() {
-  $('login-title').textContent = 'Chargement…';
+  applyLang();
+  $('login-title').textContent = tr('login.loading');
   try {
     const r = await fetch(`/api/studio/config/${encodeURIComponent(GID)}`);
-    if (!r.ok) throw new Error('Config introuvable');
+    if (!r.ok) throw new Error(tr('err.configNotFound'));
     ST.config = await r.json();
     ST.blueprintCfg = ST.config.blueprint || null;
     ST.renderCfg = ST.config.render || null;
     $('login-title').textContent = (ST.config.icon || '') + ' ' + (ST.config.name || GID);
     document.title = ST.config.name || GID;
     renderEmpireButtons();
-    $('login-status').textContent = 'Connecté — entrez votre nom et choisissez un empire.';
+    $('login-status').textContent = tr('login.ready');
     ST.connected = true;
   } catch (e) {
-    $('login-err').textContent = 'Impossible de charger la config du jeu.';
+    $('login-err').textContent = tr('login.loadFailed');
     $('login-status').textContent = String(e);
   }
   const auto = new URLSearchParams(location.search).get('auto');
   if (auto) {
-    $('user-input').value = 'Joueur-' + auto;
+    $('user-input').value = tr('login.player') + '-' + auto;
     const wrap = $('empire-buttons');
     const pick = wrap.querySelectorAll('.empire-btn')[auto === 'A' ? 0 : 1];
     if (pick) {
@@ -58,7 +60,7 @@ function renderEmpireButtons() {
 
 function doJoin() {
   const name = ($('user-input').value || '').trim();
-  if (!name) { $('login-err').textContent = 'Entrez un nom.'; return; }
+  if (!name) { $('login-err').textContent = tr('login.enterName'); return; }
   const sel = $('empire-buttons').querySelector('.empire-btn.selected');
   const empire = sel ? sel.dataset.eid : Object.keys(ST.config.empires || {})[0];
   const btn = document.querySelector('.btn-row button');
@@ -67,8 +69,8 @@ function doJoin() {
   ST.ws = new WebSocket(`${proto}://${location.host}/games/strat/ws`);
   ST.ws.onopen = () => ST.ws.send(JSON.stringify({ action: 'join', name, empire, game: GID }));
   ST.ws.onmessage = e => onMsg(JSON.parse(e.data));
-  ST.ws.onclose = () => { if ($('game-ui').style.display !== 'none') toast('Connexion perdue', 'error'); };
-  ST.ws.onerror = () => { btn.disabled = false; $('login-err').textContent = 'Erreur de connexion.'; };
+  ST.ws.onclose = () => { if ($('game-ui').style.display !== 'none') toast(tr('err.connLost'), 'error'); };
+  ST.ws.onerror = () => { btn.disabled = false; $('login-err').textContent = tr('err.connError'); };
 }
 
 /* ─── Réception des messages ─── */
@@ -91,22 +93,22 @@ function onMsg(m) {
       ST.bpTurnFired = 0;
     }
   } else if (m.action === 'error') {
-    toast(m.error, 'error');
+    toast(tErr(m.error), 'error');
   } else if (m.action === 'battle') {
     const b = m.battle;
-    banner(b.attackerWins ? '⚔️ ' + b.territory + ' conquis !' : '🛡️ Défense réussie sur ' + b.territory, b.attackerWins ? 'victory' : 'defeat');
-    toast(`Bataille ${b.attackerWins ? 'gagnée' : 'perdue'} : ${b.attackerWins ? b.atkLosses : b.defLosses} pertes`, b.attackerWins ? 'win' : 'lose');
+    banner(b.attackerWins ? '⚔️ ' + b.territory + ' ' + tr('battle.conquered') : '🛡️ ' + tr('battle.defended') + ' ' + b.territory, b.attackerWins ? 'victory' : 'defeat');
+    toast(tr('battle.result', { result: b.attackerWins ? tr('battle.won') : tr('battle.lost'), losses: fmt(b.attackerWins ? b.atkLosses : b.defLosses) }), b.attackerWins ? 'win' : 'lose');
     bpRun('onBattle', { ...b, won: (b.attackerWins ? b.attacker === ST.myEmpire : b.attacker !== ST.myEmpire) });
   } else if (m.action === 'move') {
     const mv = m.move;
-    toast(`Déplacement de ${fmt(mv.amount)} soldats`, 'info');
+    toast(tr('move.sent', { n: fmt(mv.amount) }), 'info');
   } else if (m.action === 'war') {
     const w = m.war;
-    banner(`⚔️ GUERRE : ${w.declared} vs ${w.target}`, 'war');
+    banner(tr('war.banner', { a: w.declared, b: w.target }), 'war');
   } else if (m.action === 'bot') {
-    toast(`🤖 ${m.bot.icon || ''} ${m.bot.empire} : ${m.bot.msg}`, 'info');
+    toast(`🤖 ${m.bot.icon || ''} ${m.bot.empire} : ${tBot(m.bot.msg)}`, 'info');
   } else if (m.action === 'game_over') {
-    toast(m.winner ? `🏆 Victoire de ${m.winner}` : 'Partie terminée', 'win');
+    toast(m.winner ? tr('gameOver.win', { winner: m.winner }) : tr('gameOver.over'), 'win');
   }
 }
 
@@ -119,7 +121,7 @@ function send(cmd, data) {
 function render() {
   const p = ST.state.players[ST.myPid];
   $('hud-empire').textContent = (empInfo(ST.myEmpire)?.icon || '') + ' ' + (empInfo(ST.myEmpire)?.name || '');
-  $('hud-turn').textContent = 'Tour ' + ST.state.turn;
+  $('hud-turn').textContent = tr('hud.turn', { n: ST.state.turn });
   $('hud-gold').textContent = '💰' + fmt(p?.gold || 0);
   $('hud-food').textContent = '🌾' + fmt(p?.food || 0);
   $('hud-wood').textContent = '🪵' + fmt(p?.wood || 0);
@@ -131,7 +133,7 @@ function render() {
   $('hud-players').textContent = others.length ? '👥 ' + others.map(x => x.name + (x.ready ? ' ✓' : '')).join(', ') : '';
   const btn = $('end-turn-btn');
   btn.disabled = !ST.state.your_turn || (p && p.ready);
-  btn.textContent = (p && p.ready) ? '✓ Prêt' : '⏭ Fin du tour';
+  btn.textContent = (p && p.ready) ? tr('turn.ready') : tr('turn.end');
   renderMap();
   renderLegend();
   renderWarLog();
@@ -253,15 +255,15 @@ function renderTerrBar() {
   html += `<span class="terr-bar-hint">👥${fmt(t.pop || 0)} ⚔️${fmt(t.army || 0)} ${unitMix} ${t.fort ? '🧱' + t.fort : ''}${t.fort_hill ? '🏔' : ''}</span>`;
 
   if (mine) {
-    html += `<input class="tb-amount" id="recruit-amt" type="number" min="10" step="10" value="50" title="Soldats (50 = 25 or)">`;
-    html += `<button class="tb-btn" onclick="doRecruit()">⚔️ Recruter (1:2 or)</button>`;
-    html += `<button class="tb-btn tb-conv" onclick="toggleConvert()">🔄 Convertir</button>`;
-    html += `<button class="tb-btn" onclick="openCity()">🏙 Ouvrir la ville</button>`;
-    html += `<button class="tb-btn tb-attack" onclick="toggleAttack()">⚔️ Attaquer</button>`;
-    html += `<button class="tb-btn" onclick="toggleMove()">➡️ Déplacer</button>`;
+    html += `<input class="tb-amount" id="recruit-amt" type="number" min="10" step="10" value="50" title="${tr('terr.recruitTitle')}">`;
+    html += `<button class="tb-btn" onclick="doRecruit()">${tr('terr.recruit')}</button>`;
+    html += `<button class="tb-btn tb-conv" onclick="toggleConvert()">${tr('terr.convert')}</button>`;
+    html += `<button class="tb-btn" onclick="openCity()">${tr('terr.openCity')}</button>`;
+    html += `<button class="tb-btn tb-attack" onclick="toggleAttack()">${tr('terr.attack')}</button>`;
+    html += `<button class="tb-btn" onclick="toggleMove()">${tr('terr.move')}</button>`;
     html += `<button class="tb-close" onclick="closeBar()">✕</button>`;
   } else {
-    html += `<button class="tb-btn tb-attack" onclick="selectTerrAttack(${ST.selected})">⚔️ Attaquer</button>`;
+    html += `<button class="tb-btn tb-attack" onclick="selectTerrAttack(${ST.selected})">${tr('terr.attack')}</button>`;
     html += `<button class="tb-close" onclick="closeBar()">✕</button>`;
   }
   bar.innerHTML = html;
@@ -287,10 +289,10 @@ function doRecruit() {
 /* ─── Conversion des unités ─── */
 function renderConvert() {
   const t = ST.state.territories[ST.selected];
-  let html = '<span class="terr-bar-hint">Conversion (soldats → unités) :</span>';
+  let html = `<span class="terr-bar-hint">${tr('terr.convertTitle')}</span>`;
   for (const [uid, u] of Object.entries(ST.config.units)) {
     if (uid === 'soldier') continue;
-    html += `<input class="tb-amount" id="cv-${uid}" type="number" min="1" value="1" title="Coût ${u.cost} soldats">`;
+    html += `<input class="tb-amount" id="cv-${uid}" type="number" min="1" value="1" title="${tr('terr.convertCost', { n: u.cost })}">`;
     html += `<button class="tb-btn tb-conv" onclick="doConvert('${uid}')">${u.icon || '▪'} ${u.name} (${u.cost}⚔️)</button>`;
   }
   html += `<button class="tb-close" onclick="closeBar()">✕</button>`;
@@ -309,7 +311,7 @@ function renderMove() {
   const targets = Object.values(ST.state.territories)
     .filter(x => x.owner && empireOf(x) === ST.myEmpire && x.id !== ST.selected)
     .sort((a, b) => a.name.localeCompare(b.name));
-  let html = '<span class="terr-bar-hint">Vers :</span><select class="tb-dest" id="move-dest">';
+  let html = `<span class="terr-bar-hint">${tr('terr.moveTo')}</span><select class="tb-dest" id="move-dest">`;
   for (const x of targets) html += `<option value="${x.id}">${x.name}</option>`;
   html += '</select>';
   html += `<input class="tb-amount" id="move-amt" type="number" min="10" value="50">`;
@@ -348,14 +350,14 @@ function renderAttack() {
   const targets = Object.values(ST.state.territories)
     .filter(x => !x.owner || empireOf(x) !== ST.myEmpire)
     .sort((a, b) => a.name.localeCompare(b.name));
-  let html = '<span class="terr-bar-hint">Attaquer :</span>';
+  let html = `<span class="terr-bar-hint">${tr('terr.attackTitle')}</span>`;
   html += '<select class="tb-dest" id="atk-dest" onchange="toggleAttackTarget(+this.value)">';
-  html += '<option value="">Choisir une cible…</option>';
+  html += `<option value="">${tr('terr.chooseTarget')}</option>`;
   for (const x of targets) html += `<option value="${x.id}" ${ST.pendingAttack && ST.pendingAttack.to === x.id ? 'selected' : ''}>${x.name}</option>`;
   html += '</select>';
   html += '<span id="atk-units"></span>';
   html += '<span id="atk-preview"></span>';
-  html += `<button class="tb-btn tb-attack" onclick="doAttack()">⚔️ Lancer</button>`;
+  html += `<button class="tb-btn tb-attack" onclick="doAttack()">${tr('terr.launch')}</button>`;
   html += `<button class="tb-close" onclick="closeBar()">✕</button>`;
   $('terr-bar').innerHTML += html;
   $('terr-bar').style.display = 'flex';
@@ -367,14 +369,14 @@ function renderAttack() {
     const def = uid === 'soldier' ? Math.floor(pool * 0.7) : pool;
     uh += `<span class="tb-mix">${u.icon || '▪'}<input class="tb-amount" id="atk-${uid}" type="number" min="0" max="${pool}" value="${def}" oninput="updatePreview()"></span>`;
   }
-  $('atk-units').innerHTML = uh || '<span class="terr-bar-hint">Aucune unité</span>';
+  $('atk-units').innerHTML = uh || `<span class="terr-bar-hint">${tr('terr.noUnits')}</span>`;
   updatePreview();
 }
 
 function updatePreview() {
   const el = $('atk-preview');
   if (!el) return;
-  if (!ST.pendingAttack) { el.innerHTML = '<span class="terr-bar-hint">Choisissez une cible.</span>'; return; }
+  if (!ST.pendingAttack) { el.innerHTML = `<span class="terr-bar-hint">${tr('terr.chooseTargetFirst')}</span>`; return; }
   const t = ST.state.territories[ST.selected];
   const toT = ST.state.territories[ST.pendingAttack.to];
   const sent = {};
@@ -383,14 +385,14 @@ function updatePreview() {
     const v = Math.max(0, Math.min(pool, parseInt($(`atk-${uid}`)?.value || '0', 10)));
     if (v > 0) sent[uid] = v;
   }
-  if (!Object.keys(sent).length) { el.innerHTML = '<span class="terr-bar-hint">Aucune unité envoyée.</span>'; return; }
+  if (!Object.keys(sent).length) { el.innerHTML = `<span class="terr-bar-hint">${tr('terr.noUnitsSent')}</span>`; return; }
   const res = previewCombat(t, toT, sent);
-  if (res.error) { el.innerHTML = `<span class="pct-low">⚠ ${res.error}</span>`; return; }
+  if (res.error) { el.innerHTML = `<span class="pct-low">⚠ ${tErr(res.error)}</span>`; return; }
   const mid = 1.0, lo = 0.8, hi = 1.2;
   const pct = Math.round(((res.atkPower * mid - res.defPower) / res.defPower) * 100);
   const cls = pct > 20 ? 'pct-high' : (pct > -10 ? 'pct-mid' : 'pct-low');
-  const outcome = res.atkPower * lo > res.defPower ? '≈ victoire' : (res.atkPower * hi > res.defPower ? '≈ 50/50' : '≈ défaite');
-  el.innerHTML = `<span class="terr-bar-hint">Attaque ${fmt(res.atkPower)} vs Défense ${fmt(res.defPower)}</span> <span class="${cls}">(${pct > 0 ? '+' : ''}${pct}% — ${outcome})</span>`;
+  const outcome = res.atkPower * lo > res.defPower ? tr('terr.previewWin') : (res.atkPower * hi > res.defPower ? tr('terr.previewFifty') : tr('terr.previewLose'));
+  el.innerHTML = `<span class="terr-bar-hint">${tr('terr.previewPower', { atk: fmt(res.atkPower), def: fmt(res.defPower) })}</span> <span class="${cls}">(${pct > 0 ? '+' : ''}${pct}% — ${outcome})</span>`;
 }
 
 function previewCombat(t, toT, sent) {
@@ -427,7 +429,7 @@ function atkTypeMult(utype, toT, units, cmb, prof) {
 }
 
 function doAttack() {
-  if (!ST.pendingAttack) { toast('Choisissez une cible', 'error'); return; }
+  if (!ST.pendingAttack) { toast(tr('terr.chooseTargetFirst'), 'error'); return; }
   const t = ST.state.territories[ST.selected];
   const units = {};
   for (const uid of Object.keys(ST.config.units)) {
@@ -435,7 +437,7 @@ function doAttack() {
     const v = Math.max(0, Math.min(pool, parseInt($(`atk-${uid}`)?.value || '0', 10)));
     if (v > 0) units[uid] = v;
   }
-  if (!Object.keys(units).length) { toast('Aucune unité envoyée', 'error'); return; }
+  if (!Object.keys(units).length) { toast(tr('terr.noUnitsSent'), 'error'); return; }
   send('attack', { to: ST.pendingAttack.to, units });
 }
 
@@ -505,7 +507,7 @@ function toggleWarLog() { const el = $('war-log'); el.style.display = el.style.d
 
 function renderLegend() {
   const el = $('empire-legend');
-  let html = '<h4>Empires</h4>';
+  let html = `<h4>${tr('legend.title')}</h4>`;
   for (const [eid, e] of Object.entries(ST.state.empires)) {
     const isMe = eid === ST.myEmpire;
     html += `<div class="legend-row ${isMe ? 'you' : ''}"><span class="swatch" style="background:${e.color}"></span><span class="ename">${e.icon} ${e.name}</span><span class="yours">${fmt(e.army)}⚔️ ${fmt(e.pop)}👥</span><span class="ewar">${e.wars.length ? '⚔️' : ''}</span></div>`;
@@ -515,17 +517,17 @@ function renderLegend() {
 
 function renderWarLog() {
   const el = $('war-log');
-  let html = '<h4>État de guerre</h4>';
+  let html = `<h4>${tr('warLog.title')}</h4>`;
   const wars = [];
   for (const [eid, e] of Object.entries(ST.state.empires)) {
     for (const t of e.wars || []) {
       if (eid < t) wars.push([eid, t]);
     }
   }
-  if (!wars.length) html += '<div class="war-entry"><span class="war-win">☮ Aucune guerre</span></div>';
+  if (!wars.length) html += `<div class="war-entry"><span class="war-win">☮ ${tr('warLog.none')}</span></div>`;
   for (const [a, b] of wars) {
     const me = a === ST.myEmpire || b === ST.myEmpire;
-    html += `<div class="war-entry">⚔️ <span class="war-att">${empInfo(a)?.icon} ${empInfo(a)?.name}</span> vs <span class="war-def">${empInfo(b)?.icon} ${empInfo(b)?.name}</span>${me ? ' <span class="war-win">(vous)</span>' : ''}</div>`;
+    html += `<div class="war-entry">⚔️ <span class="war-att">${empInfo(a)?.icon} ${empInfo(a)?.name}</span> vs <span class="war-def">${empInfo(b)?.icon} ${empInfo(b)?.name}</span>${me ? ` <span class="war-win">(${tr('warLog.you')})</span>` : ''}</div>`;
   }
   el.innerHTML = html;
 }
@@ -537,7 +539,7 @@ function endTurn() {
   bpRun('onTurnEnd', null);
   send('ready', {});
   btn.disabled = true;
-  btn.textContent = '✓ Prêt';
+  btn.textContent = tr('turn.ready');
 }
 
 /* ─── Toasts & bannière ─── */
@@ -563,6 +565,10 @@ function banner(text, type) {
 /* ─── Exports pour les modules (state, blueprint, motion) ─── */
 export { send, toast, banner, selectTerr, renderMap };
 
+window.__onLangChange = () => {
+  if (ST.state && ST.myEmpire) render();
+};
+
 /* ─── Fonctions globales appelées par les onclick du HTML ─── */
 Object.assign(window, {
   doJoin, endTurn, toggle3D, toggleLegend, toggleWarLog,
@@ -570,6 +576,7 @@ Object.assign(window, {
   openCity, closeCity, selectTerrAttack, setBuild,
   toggleAttack, toggleConvert, toggleMove,
   toggleAttackTarget, updatePreview,
+  setLang, tErr, tBot,
 });
 
 init();

@@ -5,6 +5,7 @@
 import { $, ST } from './state.js?v=2';
 import { colorOfEmpire, empireOf } from './state.js?v=2';
 import { selectTerr, toast, renderMap } from '../main.js?v=2';
+import { t as tr } from './i18n.js?v=4';
 
 export function renderOptions() {
   const r = (ST.config && ST.config.render) || ST.renderCfg || {};
@@ -63,9 +64,9 @@ async function init3D() {
     return ctx3;
   } catch (e) {
     console.error('3D indisponible :', e);
-    toast('Vue 3D indisponible (connexion CDN requise)', 'error');
+    toast(tr('motion.no3d'), 'error');
     ST.view3d = false;
-    $('view3d-btn').textContent = '🌐 3D';
+    $('view3d-btn').textContent = tr('motion.3d');
     return null;
   }
 }
@@ -169,7 +170,7 @@ export async function toggle3D() {
   ST.view3d = !ST.view3d;
   const btn = $('view3d-btn');
   if (ST.view3d) {
-    btn.textContent = '🗺️ 2D';
+    btn.textContent = tr('motion.2d');
     $('map-canvas').style.display = 'none';
     const c = await init3D();
     if (!c) return;
@@ -178,7 +179,7 @@ export async function toggle3D() {
     buildGlobeMarkers();
     startGlobeLoop();
   } else {
-    btn.textContent = '🌐 3D';
+    btn.textContent = tr('motion.3d');
     if (ST.threeCtx) { ST.threeCtx.renderer.domElement.style.display = 'none'; stopGlobeLoop(); }
     $('map-canvas').style.display = 'block';
     renderMap();
