@@ -161,7 +161,7 @@ function makeLabel(c, t) {
   const tex = new c.THREE.CanvasTexture(cv);
   const spr = new c.THREE.Sprite(new c.THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
   spr.position.copy(ll2xyz(t.lon, t.lat, c.opts.radius * 1.1, c.THREE));
-  const k = c.opts.radius * 0.085 * (c.opts.labelScale || 1);
+  const k = c.opts.radius * 0.085 * (c.opts.labelScale || 1) / 20;
   spr.scale.set(k * (cv.width / sh), k, 1);
   spr.userData.tid = t.id;
   return spr;
