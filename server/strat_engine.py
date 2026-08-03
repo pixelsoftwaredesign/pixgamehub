@@ -129,6 +129,42 @@ def save_config(gid, cfg):
     CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
     p = config_path(gid)
     p.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding='utf-8')
+
+def _mini_map(names=None):
+    """Mini-carte 4×3 = 12 territoires, 4 empires (utilisée par la génération agentic)."""
+    names = (names or ['Rouges', 'Bleus', 'Verts', 'Dorés'])
+    colors = ['#e5484d', '#3a86ff', '#38b26a', '#f2b623']
+    icons = ['🔴', '🔵', '🟢', '🟡']
+    W, H = 4, 3
+    t_names = ['Avalon', 'Baronie', 'Cygne', 'Drake', 'Eder', 'Falcon',
+               'Garn', 'Havre', 'Iris', 'Jade', 'Kron', 'Lume']
+    territories = []
+    for y in range(H):
+        for x in range(W):
+            t_id = x + y * W
+            territories.append({'id': t_id, 'name': t_names[t_id] if t_id < len(t_names) else f'T{t_id + 1}',
+                                'lon': -170 + x * 90, 'lat': 65 - y * 45, 'cap': False, 'home': None, 'adj': []})
+    for y in range(H):
+        for x in range(W):
+            t_id = x + y * W
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < W and 0 <= ny < H:
+                    territories[t_id]['adj'].append(nx + ny * W)
+    empires = {}
+    cap_of = {}
+    for i in range(4):
+        eid = ['red', 'blue', 'green', 'gold'][i]
+        empires[eid] = {'name': names[i % len(names)], 'color': colors[i], 'icon': icons[i], 'capital': None}
+        cap_of[eid] = None
+    for i, t in enumerate(territories):
+        eid = ['red', 'blue', 'green', 'gold'][i % 4]
+        t['home'] = eid
+        if cap_of[eid] is None:
+            cap_of[eid] = t['id']
+            t['cap'] = True
+            empires[eid]['capital'] = t['id']
+    return {'territories': territories, 'empires': empires}
     return str(p)
 
 
@@ -198,7 +234,7 @@ class StrategyEngine:
             'units': c.get('units', {}), 'counters': c.get('counters', {}),
             'terrains': c.get('terrains', {}), 'buildings': c.get('buildings', {}),
             'combat': c.get('combat', {}), 'attack': c.get('attack', {}),
-            'win': c.get('win', {}),
+            'win': c.get('win', {}), 'blueprint': c.get('blueprint', {'enabled': False, 'code': ''}),
         }
 
     # ─── Empire helpers ──────────────────────────────────────────

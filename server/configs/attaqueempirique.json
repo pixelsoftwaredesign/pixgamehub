@@ -1,6 +1,6 @@
 {
-  "id": "strat",
-  "name": "Strat",
+  "id": "attaqueempirique",
+  "name": "Attaque empirique",
   "icon": "🌍",
   "genre": "Strategie",
   "grid_size": 8,
@@ -213,109 +213,109 @@
   },
   "empires": {
     "carthage": {
-      "name": "Carthage",
+      "name": "Aurore",
       "capital": 0,
       "color": "#2ecc71",
       "icon": "⚱️"
     },
     "rome": {
-      "name": "Rome",
+      "name": "Borée",
       "capital": 6,
       "color": "#e74c3c",
       "icon": "🏛️"
     },
     "egypt": {
-      "name": "Égypte",
+      "name": "Cobalt",
       "capital": 19,
       "color": "#f1c40f",
       "icon": "🏺"
     },
     "persia": {
-      "name": "Perse",
+      "name": "Drakar",
       "capital": 36,
       "color": "#9b59b6",
       "icon": "🦁"
     },
     "sparta": {
-      "name": "Sparte",
+      "name": "Aurore",
       "capital": 23,
       "color": "#e67e22",
       "icon": "🛡️"
     },
     "greece": {
-      "name": "Grèce",
+      "name": "Borée",
       "capital": 22,
       "color": "#3498db",
       "icon": "⚜️"
     },
     "saba": {
-      "name": "Saba",
+      "name": "Cobalt",
       "capital": 47,
       "color": "#1abc9c",
       "icon": "🕊️"
     },
     "maya": {
-      "name": "Maya",
+      "name": "Drakar",
       "capital": 53,
       "color": "#c0392b",
       "icon": "🗿"
     },
     "assyria": {
-      "name": "Assyrie",
+      "name": "Aurore",
       "capital": 59,
       "color": "#7f8c8d",
       "icon": "🐂"
     },
     "boboli": {
-      "name": "Boboli",
+      "name": "Borée",
       "capital": 65,
       "color": "#f39c12",
       "icon": "🏰"
     },
     "japan": {
-      "name": "Japon",
+      "name": "Cobalt",
       "capital": 69,
       "color": "#27ae60",
       "icon": "⛩️"
     },
     "mongol": {
-      "name": "Mongol",
+      "name": "Drakar",
       "capital": 76,
       "color": "#8e44ad",
       "icon": "🐎"
     },
     "russia": {
-      "name": "Russie",
+      "name": "Aurore",
       "capital": 82,
       "color": "#34495e",
       "icon": "🐻"
     },
     "china": {
-      "name": "Chine",
+      "name": "Borée",
       "capital": 89,
       "color": "#d35400",
       "icon": "🐉"
     },
     "wako": {
-      "name": "Wako",
+      "name": "Cobalt",
       "capital": 96,
       "color": "#16a085",
       "icon": "🏴‍☠️"
     },
     "australia": {
-      "name": "Australie & NZ",
+      "name": "Drakar",
       "capital": 102,
       "color": "#2980b9",
       "icon": "🦘"
     },
     "india": {
-      "name": "Inde",
+      "name": "Aurore",
       "capital": 111,
       "color": "#e84393",
       "icon": "🐘"
     },
     "mali": {
-      "name": "Mali",
+      "name": "Borée",
       "capital": 118,
       "color": "#6c5ce7",
       "icon": "👑"
@@ -1696,5 +1696,9 @@
       ]
     }
   ],
-  "apiKey": "phg_priv_789fad30331c1be2db66c0579366e1a8"
+  "blueprint": {
+    "enabled": false,
+    "code": ""
+  },
+  "apiKey": "phg_priv_6d6440cf869f0990b2cd3497c2dbe050"
 }

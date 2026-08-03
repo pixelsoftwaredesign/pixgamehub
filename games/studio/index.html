@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studio · Créateur de jeux de stratégie</title>
+<link rel="stylesheet" href="css/studio.css?v=1">
+</head>
+<body>
+
+<div class="studio-top">
+  <h1>🎛 Studio — Créateur de jeux</h1>
+  <p class="sub">Chaque réglage génère une config JSON exécutée par le moteur de jeu. Les jeux sauvegardés sont jouables dans le hub via le client générique.</p>
+  <div class="topbar">
+    <select id="game-select"></select>
+    <button id="btn-new" onclick="newGame()">＋ Nouveau</button>
+    <button id="btn-load" onclick="loadSelected()">📂 Charger</button>
+    <button id="btn-save" onclick="saveGame()">💾 Sauvegarder</button>
+    <a id="btn-play" class="btn-play" href="#" target="_blank">▶ Jouer</a>
+    <span id="save-status" class="status"></span>
+  </div>
+</div>
+
+<div class="studio-body">
+
+  <div class="sections-nav">
+    <a href="#sec-meta" class="nav-active">Général</a>
+    <a href="#sec-map">Carte</a>
+    <a href="#sec-empires">Empires</a>
+    <a href="#sec-units">Unités</a>
+    <a href="#sec-counters">Contres</a>
+    <a href="#sec-terrains">Terrains</a>
+    <a href="#sec-buildings">Bâtiments</a>
+    <a href="#sec-economy">Départ & Économie</a>
+    <a href="#sec-combat">Combat</a>
+    <a href="#sec-terrengen">Génération</a>
+    <a href="#sec-win">Victoire</a>
+    <a href="#sec-render">Rendu 3D</a>
+    <a href="#sec-ai">Génération IA</a>
+    <a href="#sec-blueprint">Blueprint</a>
+    <a href="#sec-keys">Clés API</a>
+    <a href="#sec-json">JSON</a>
+  </div>
+
+  <div class="sections">
+
+    <section id="sec-meta" class="card">
+      <h2>📄 Général</h2>
+      <div class="grid3">
+        <label>Identifiant (id)<input data-cfg="id" type="text" placeholder="monjeu"></label>
+        <label>Nom du jeu<input data-cfg="name" type="text" placeholder="Mon Jeu"></label>
+        <label>Icône<input data-cfg="icon" type="text" placeholder="🌍"></label>
+        <label>Genre<input data-cfg="genre" type="text" value="Stratégie"></label>
+        <label>Taille des villes (grille)<input data-cfg="grid_size" type="number" min="4" max="16"></label>
+      </div>
+    </section>
+
+    <section id="sec-map" class="card">
+      <h2>🗺 Carte du monde</h2>
+      <div class="grid3">
+        <label>Présélection
+          <select id="map-preset">
+            <option value="monde">Monde (territoires actuels)</option>
+            <option value="mini">Mini-carte (12 territoires)</option>
+          </select>
+        </label>
+      </div>
+      <div class="hint">« Mini-carte » régénère 12 territoires + 4 empires vierges (remplace les empires actuels). « Monde » garde les territoires déjà présents dans la config.</div>
+      <div id="map-stats" class="hint"></div>
+    </section>
+
+    <section id="sec-empires" class="card">
+      <h2>🏛 Empires</h2>
+      <table class="tbl">
+        <thead><tr><th>Actif</th><th>Nom</th><th>Icône</th><th>Couleur</th><th>Capitale</th></tr></thead>
+        <tbody id="empires-body"></tbody>
+      </table>
+      <div class="hint">Décocher un empire le retire de la config : ses territoires deviennent neutres.</div>
+    </section>
+
+    <section id="sec-units" class="card">
+      <h2>⚔️ Unités</h2>
+      <table class="tbl">
+        <thead><tr><th>Id</th><th>Nom</th><th>Icône</th><th>Attaque</th><th>Défense</th><th>Coût (soldats)</th><th></th></tr></thead>
+        <tbody id="units-body"></tbody>
+      </table>
+      <button class="mini-btn" onclick="addUnit()">＋ Ajouter une unité</button>
+      <div class="hint">« soldier » (infanterie) est obligatoire et ne peut pas être supprimé.</div>
+    </section>
+
+    <section id="sec-counters" class="card">
+      <h2>🪨✂️📄 Contres (pierre-feuille-ciseaux)</h2>
+      <div class="hint">Multiplicateur d'attaque de l'unité (ligne) contre la composition défensive (colonne). 1.5 = +50%.</div>
+      <div id="counters-wrap"></div>
+    </section>
+
+    <section id="sec-terrains" class="card">
+      <h2>🌲 Terrains (cases des villes)</h2>
+      <table class="tbl">
+        <thead><tr><th>Id</th><th>Nom</th><th>Icône</th><th>Couleur</th><th>Défense</th><th>constructible</th><th>open</th><th>beach</th><th>sea</th><th>fertile</th><th>forest</th></tr></thead>
+        <tbody id="terrains-body"></tbody>
+      </table>
+    </section>
+
+    <section id="sec-buildings" class="card">
+      <h2>🏰 Bâtiments</h2>
+      <table class="tbl">
+        <thead><tr><th>Id</th><th>Nom</th><th>Icône</th><th>Coût 💰</th><th>Coût 🪵</th><th>Coût ⛰</th><th>pop</th><th>food</th><th>fort</th><th>fort_hill</th><th>army_rate</th><th>bord de l'eau</th><th></th></tr></thead>
+        <tbody id="buildings-body"></tbody>
+      </table>
+      <button class="mini-btn" onclick="addBuilding()">＋ Ajouter un bâtiment</button>
+    </section>
+
+    <section id="sec-economy" class="card">
+      <h2>💰 Départ & Économie</h2>
+      <div class="grid3">
+        <label>Soldats de base<input data-cfg="start.base_soldiers" type="number"></label>
+        <label>Multiplicateur soldats<input data-cfg="start.soldier_mult" type="number" step="0.1"></label>
+        <label>Or de départ<input data-cfg="start.gold" type="number"></label>
+        <label>Nourriture de départ<input data-cfg="start.food" type="number"></label>
+        <label>Pop capitale<input data-cfg="start.cap_pop" type="number"></label>
+        <label>Pop territoire<input data-cfg="start.home_pop" type="number"></label>
+        <label>Or / tour de base<input data-cfg="economy.gold_base" type="number"></label>
+        <label>Or / territoire<input data-cfg="economy.gold_per_terr" type="number"></label>
+        <label>Nourriture / tour<input data-cfg="economy.food_base" type="number"></label>
+        <label>Nourriture / territoire<input data-cfg="economy.food_per_terr" type="number"></label>
+        <label>Diviseur croissance (pop)<input data-cfg="economy.growth_div" type="number"></label>
+      </div>
+    </section>
+
+    <section id="sec-combat" class="card">
+      <h2>⚔️ Combat</h2>
+      <div class="grid3">
+        <label>Défense des forts<input data-cfg="combat.fort_defense" type="number" step="0.05"></label>
+        <label>Pénalité des forts<input data-cfg="combat.fort_penalty" type="number" step="0.05"></label>
+        <label>Multiplicateur fort min<input data-cfg="combat.fort_min" type="number" step="0.05"></label>
+        <label>Fort sur colline (facteur)<input data-cfg="combat.fort_hill_factor" type="number" step="0.05"></label>
+        <label>Bonus éléphant (perce murs)<input data-cfg="combat.elephant_bonus" type="number" step="0.05"></label>
+        <label>Défense terrain (par case)<input data-cfg="combat.terrain_defense" type="number" step="0.05"></label>
+        <label>Variance (0–1)<input data-cfg="combat.variance" type="number" step="0.05"></label>
+        <label>Assistance alliés (%)<input data-cfg="combat.assist_pct" type="number" step="0.05"></label>
+        <label>Pertes défense (% attaque ratée)<input data-cfg="combat.def_loss_pct" type="number" step="0.05"></label>
+        <label class="chk"><input data-cfg="attack.cavalry_open_terrain" type="checkbox"> Cavalerie bonus terrain ouvert</label>
+        <label class="chk"><input data-cfg="attack.navy_requires_beach" type="checkbox"> Navires exigent une plage</label>
+      </div>
+    </section>
+
+    <section id="sec-terrengen" class="card">
+      <h2>🧬 Génération des villes</h2>
+      <div class="grid3">
+        <label>Probabilité côtière<input data-cfg="terrain_gen.coastal_prob" type="number" step="0.05"></label>
+        <label>Ratio eau<input data-cfg="terrain_gen.water_ratio" type="number" step="0.05"></label>
+        <label>Collines<input data-cfg="terrain_gen.hills" type="number"></label>
+        <label>Forêts min<input data-cfg="terrain_gen.min_forest" type="number"></label>
+        <label>Forêts max<input data-cfg="terrain_gen.max_forest" type="number"></label>
+        <label>Fertiles min<input data-cfg="terrain_gen.min_fertile" type="number"></label>
+        <label>Fertiles max<input data-cfg="terrain_gen.max_fertile" type="number"></label>
+      </div>
+    </section>
+
+    <section id="sec-win" class="card">
+      <h2>🏆 Victoire</h2>
+      <div class="grid3">
+        <label>Capitales à conquérir<input data-cfg="win.capitals" type="number" min="1"></label>
+      </div>
+    </section>
+
+    <section id="sec-render" class="card">
+      <h2>🌐 Rendu 3D <span class="hint">mode globe configurable (client générique)</span></h2>
+      <div class="grid3">
+        <label>Mode de rendu
+          <select data-cfg="render.mode">
+            <option value="2d">Carte 2D</option>
+            <option value="globe">Globe 3D</option>
+          </select>
+        </label>
+        <label>Rayon du globe<input data-cfg="render.globe.radius" type="number" step="0.1"></label>
+        <label>Rotation auto (vitesse)<input data-cfg="render.globe.speed" type="number" step="0.05"></label>
+        <label class="chk"><input data-cfg="render.globe.autorotate" type="checkbox"> Rotation automatique</label>
+        <label>Échelle des marqueurs<input data-cfg="render.globe.markerScale" type="number" step="0.1"></label>
+        <label>Couleur océan<input data-cfg="render.globe.ocean" type="color"></label>
+      </div>
+    </section>
+
+    <section id="sec-ai" class="card">
+      <h2>🤖 Génération IA <span class="hint">crée un jeu entier depuis une description</span></h2>
+      <textarea id="ai-prompt" placeholder="Ex : Duel rapide entre les empires Dragon et Phoenix sur une île, victoire par conquête des capitales…"></textarea>
+      <div class="row-btns">
+        <button id="btn-generate" class="mini-btn" onclick="generateGame()">✨ Générer le jeu</button>
+        <span class="hint">Nécessite la clé privée (section Clés API) et une connexion au serveur.</span>
+      </div>
+    </section>
+
+    <section id="sec-blueprint" class="card">
+      <h2>🔷 Blueprint JS <span class="hint">script visuel exécuté dans le client (système de règles bonus)</span></h2>
+      <div class="bp-toolbar">
+        <span class="hint">Événements :</span>
+        <button class="mini-btn" onclick="bpAddNode('turn')">▶ À ton tour</button>
+        <button class="mini-btn" onclick="bpAddNode('turnEnd')">⏹ Fin de tour</button>
+        <button class="mini-btn" onclick="bpAddNode('battle')">⚔ Combat</button>
+        <button class="mini-btn" onclick="bpAddNode('state')">🔄 À chaque état</button>
+        <span class="hint" style="margin-left:12px">Actions :</span>
+        <button class="mini-btn" onclick="bpAddNode('toast')">💬 Toast</button>
+        <button class="mini-btn" onclick="bpAddNode('banner')">📢 Bannière</button>
+        <button class="mini-btn" onclick="bpAddNode('setVar')">🧮 Variable</button>
+        <button class="mini-btn" onclick="bpAddNode('autoEnd')">⏭ Fin auto</button>
+        <button class="mini-btn" onclick="bpAddNode('send')">📡 Commande</button>
+      </div>
+      <div class="bp-canvas-wrap">
+        <svg id="bp-svg" class="bp-svg"></svg>
+        <div id="bp-canvas" class="bp-canvas"></div>
+      </div>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="bpCompile()">⚙ Générer le code</button>
+        <button class="mini-btn" onclick="bpClear()">🗑 Vider</button>
+        <label class="chk" style="margin-left:10px"><input id="bp-enabled" type="checkbox" onchange="bpEnable()"> Blueprint activé</label>
+      </div>
+      <p class="hint">Glissez les nœuds, reliez une sortie (cercle) d'un événement à l'entrée (rond) d'une action. « Condition » = expression JS (ex : <span class="mono">army &gt; 50</span>, <span class="mono">gold &gt; 100</span>, <span class="mono">capitals &gt;= 2</span>).</p>
+      <textarea id="bp-code" spellcheck="false" class="bp-code"></textarea>
+    </section>
+
+    <section id="sec-keys" class="card">
+      <h2>🔑 Clés API</h2>
+      <div class="grid3">
+        <label>Clé privée (écriture — jamais enregistrée)<input id="priv-key" type="password" placeholder="phg_priv_…" autocomplete="off"></label>
+        <label>Nom de la clé<input id="key-name" type="text" placeholder="Mon Studio"></label>
+        <label>Jeu lié<input id="key-game" type="text" placeholder="monjeu"></label>
+      </div>
+      <div class="row-btns">
+        <button id="btn-key-create" class="mini-btn" onclick="createKey()">🔐 Créer une paire de clés</button>
+        <button id="btn-key-list" class="mini-btn" onclick="listKeys()">📋 Lister mes clés</button>
+      </div>
+      <p class="hint">Règles : la clé <b>publique</b> sert à lire/jouer, la clé <b>privée</b> à créer, modifier ou supprimer des jeux.</p>
+      <div id="keys-wrap"></div>
+    </section>
+
+    <section id="sec-json" class="card">
+      <h2>📦 Aperçu JSON <span class="hint">(lecture seule — mise à jour automatique)</span></h2>
+      <textarea id="json-preview" readonly spellcheck="false"></textarea>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="downloadJson()">⬇ Télécharger .json</button>
+        <span class="hint" id="json-size"></span>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script type="module" src="js/main.js?v=2"></script>
+</body>
+</html>

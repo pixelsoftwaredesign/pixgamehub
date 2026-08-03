@@ -278,6 +278,32 @@
             </div>
             <div class="play-btn">LANCER</div>
         </div>
+
+        <!-- STUDIO : créer un jeu de stratégie -->
+        <div class="game-card" onclick="location.href='games/studio/index.html'">
+            <div class="game-preview" style="display:flex; align-items:center; justify-content:center; font-size:56px; background:linear-gradient(135deg,#241a35 0%,#3a1a28 100%);">
+                <span>🎛️</span>
+            </div>
+            <div class="game-info">
+                <span class="game-genre">🎛️ Créateur</span>
+                <h2>Studio de jeux</h2>
+                <p>Crée ton propre jeu de stratégie sans coder : unités, contres, terrains, bâtiments, économie et combat. Puis joue-le dans le hub.</p>
+                <div class="game-tags">
+                    <span class="tag">Visuel</span>
+                    <span class="tag">Config JSON</span>
+                    <span class="tag">Jouable</span>
+                </div>
+            </div>
+            <div class="play-btn">OUVRIR</div>
+        </div>
+    </div>
+
+    <div id="creator-section" style="display:none; padding: 10px 24px 30px; max-width:1200px; margin:0 auto;">
+        <div class="creator-section-head">
+            <h2 style="color:#f0d060; font-size:20px; letter-spacing:1px;">🎛 Vos jeux créés dans le Studio</h2>
+            <button class="hub-action-btn" onclick="location.href='games/studio/index.html'">＋ Créer un jeu</button>
+        </div>
+        <div id="creator-games" class="creator-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:16px; margin-top:14px;"></div>
     </div>
 
     <footer>
@@ -297,6 +323,7 @@
         <p class="footer-tech">HTML5 Canvas · JavaScript · WebGL 2.0 · TypeScript · ECS Architecture</p>
     </footer>
 
+    <script src="creator-loader.js"></script>
     <script src="hub-client.js"></script>
     <script src="gamepad.js"></script>
     <script src="hub.js"></script>
