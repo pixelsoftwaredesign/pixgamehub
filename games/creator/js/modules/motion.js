@@ -20,6 +20,8 @@ export function renderOptions() {
     markerSize: Number(g.markerSize) || 0.055,
     markerOpacity: g.markerOpacity != null ? Number(g.markerOpacity) : 1,
     texture: g.texture || null,
+    labels: g.labels !== false,
+    labelScale: Number(g.labelScale) || 1,
   };
 }
 
@@ -41,7 +43,7 @@ async function init3D() {
     const container = $('map-container');
     const opts = renderOptions();
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#05070f');
+    scene.background = new THREE.Color('#0a1a33');
     const camera = new THREE.PerspectiveCamera(55, container.clientWidth / Math.max(1, container.clientHeight), 0.1, 200);
     camera.position.set(opts.radius * 0.6, opts.radius * 1.1, opts.radius * 3.2);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -57,7 +59,7 @@ async function init3D() {
     const starsGeo = new THREE.BufferGeometry();
     starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(makeStars(), 3));
     scene.add(new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0x8aa0c0, size: 0.02 })));
-    const ctx3 = { THREE, scene, camera, renderer, controls, group, markers: new Map(), fx: [], opts, animId: null, downX: 0, downY: 0, moved: false };
+    const ctx3 = { THREE, scene, camera, renderer, controls, group, markers: new Map(), labels: new Map(), fx: [], opts, animId: null, downX: 0, downY: 0, moved: false };
     renderer.domElement.addEventListener('pointerdown', e => { ctx3.downX = e.clientX; ctx3.downY = e.clientY; ctx3.moved = false; });
     renderer.domElement.addEventListener('pointermove', e => { if (Math.hypot(e.clientX - ctx3.downX, e.clientY - ctx3.downY) > 6) ctx3.moved = true; });
     renderer.domElement.addEventListener('pointerup', e => { if (!ctx3.moved) onGlobePick(e); });
@@ -126,8 +128,43 @@ export function buildGlobeMarkers() {
     }
   }
   for (const m of c.markers.values()) c.group.add(m);
+  if (opts.labels) {
+    if (c.labels.size !== ts.length || c.labels.size === 0) {
+      c.labels = new Map();
+      for (const t of ts) {
+        const spr = makeLabel(c, t);
+        c.labels.set(t.id, spr);
+      }
+    }
+    for (const spr of c.labels.values()) c.group.add(spr);
+  }
   buildGlobeLinks(c);
   refreshGlobeColors();
+}
+
+function makeLabel(c, t) {
+  const name = String(t.name || ('T' + t.id));
+  const cv = document.createElement('canvas');
+  const sh = 64;
+  cv.width = 256; cv.height = sh;
+  let g = cv.getContext('2d');
+  g.font = '600 30px system-ui, sans-serif';
+  const tw = Math.min(256, Math.ceil(g.measureText(name).width) + 16);
+  cv.width = Math.max(48, tw);
+  g = cv.getContext('2d');
+  g.font = '600 28px system-ui, sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 5; g.strokeStyle = 'rgba(0,0,0,0.75)';
+  g.strokeText(name, cv.width / 2, sh / 2);
+  g.fillStyle = '#f4f7ff';
+  g.fillText(name, cv.width / 2, sh / 2);
+  const tex = new c.THREE.CanvasTexture(cv);
+  const spr = new c.THREE.Sprite(new c.THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  spr.position.copy(ll2xyz(t.lon, t.lat, c.opts.radius * 1.1, c.THREE));
+  const k = c.opts.radius * 0.085 * (c.opts.labelScale || 1);
+  spr.scale.set(k * (cv.width / sh), k, 1);
+  spr.userData.tid = t.id;
+  return spr;
 }
 
 function buildGlobeLinks(c) {
