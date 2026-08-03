@@ -805,6 +805,8 @@ function openCity(t) {
   document.getElementById('city-view').style.display = 'flex'
   document.getElementById('city-title').textContent = t.name + (t.cap ? ' 🏛' : '')
   document.getElementById('city-stats').textContent = ''
+  const legend = document.getElementById('city-msg')
+  if (legend) legend.innerHTML = '🌊 eau &nbsp;·&nbsp; 🏖️ plage (ports) &nbsp;·&nbsp; ⛰️ colline (murs +50%) &nbsp;·&nbsp; 🌲 forêt (bloque) &nbsp;·&nbsp; 🌾 fertile (fermes +50%)'
   renderCityTools()
   renderCityActions(t)
   renderCityCanvas(t)
@@ -886,9 +888,13 @@ function renderCityTools() {
   }
 }
 
+function defaultGrid() {
+  return Array.from({length:8},()=>Array.from({length:8},()=>({t:'plain',b:null})))
+}
+
 function renderCityCanvas(t) {
   let td = state.territories[t.id]
-  let grid = td?.grid || Array.from({length:8},()=>Array(8).fill(null))
+  let grid = td?.grid || defaultGrid()
   let GS = 8, T = 56, P = 16
   cityCanvas.width = GS*T + P*2
   cityCanvas.height = GS*T + P*2
@@ -896,17 +902,26 @@ function renderCityCanvas(t) {
   ctx.fillStyle = '#08060a'
   ctx.fillRect(0,0,cityCanvas.width,cityCanvas.height)
 
+  const TERRAIN = {
+    plain:   {col:'#14100e', icon:''},
+    water:   {col:'#0a1c30', icon:'🌊'},
+    beach:   {col:'#241e14', icon:'🏖️'},
+    hill:    {col:'#231812', icon:'⛰️'},
+    forest:  {col:'#0f2212', icon:'🌲'},
+    fertile: {col:'#16260e', icon:'🌾'},
+  }
+  const BUILD_COLS = {house:'#2a1a12',farm:'#1a2a12',wall:'#3a1a12',barracks:'#2a1210',market:'#2a2a10',temple:'#1a102a',port:'#101a2a'}
+  const BUILD_ICONS = {house:'🏠',farm:'🌾',wall:'🧱',barracks:'⚔️',market:'💰',temple:'☥',port:'⚓'}
+
   for (let row=0; row<GS; row++) {
     for (let c=0; c<GS; c++) {
       let cx = P + c*T + T/2, cy = P + row*T + T/2
       let cell = grid[row][c]
-      let col = '#12100e'
-      let icon = ''
-      if (cell === null) { col = '#0e0a0c'; if (row===0||row===GS-1||c===0||c===GS-1) col='#1a1210' }
-      else {
-        col = {house:'#2a1a12',farm:'#1a2a12',wall:'#3a1a12',barracks:'#2a1210',market:'#2a2a10',temple:'#1a102a',port:'#101a2a'}[cell]||'#1a1a1a'
-        icon = {house:'🏠',farm:'🌾',wall:'🧱',barracks:'⚔️',market:'💰',temple:'☥',port:'⚓'}[cell]||'⬜'
-      }
+      let ter = 'plain', bld = null
+      if (cell && typeof cell === 'object') { ter = cell.t || 'plain'; bld = cell.b || null }
+      else if (cell && typeof cell === 'string') bld = cell
+      let terrainStyle = TERRAIN[ter] || TERRAIN.plain
+      let col = terrainStyle.col
       ctx.fillStyle = col
       let pad = 2, x=cx-T/2+pad, y=cy-T/2+pad, w=T-pad*2, h=T-pad*2, r=2
       ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r)
@@ -918,13 +933,21 @@ function renderCityCanvas(t) {
       ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h)
       ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r)
       ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.stroke()
-      if (icon) { ctx.font='24px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(icon, cx, cy) }
+      if (terrainStyle.icon) { ctx.font='15px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.globalAlpha=0.85; ctx.fillText(terrainStyle.icon, cx, cy); ctx.globalAlpha=1 }
+      if (bld) {
+        ctx.fillStyle = BUILD_COLS[bld] || '#1a1a1a'
+        ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r)
+        ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h)
+        ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r)
+        ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.fill()
+        ctx.font='24px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(BUILD_ICONS[bld]||'⬜', cx, cy)
+      }
     }
   }
 
   let pop = td?.pop||0
   let army = td?.army||0
-  document.getElementById('city-stats').textContent = `👥${pop.toLocaleString()} ⚔️${army} 🧱${td?.fort||0}`
+  document.getElementById('city-stats').textContent = `👥${pop.toLocaleString()} ⚔️${army} 🧱${td?.fort||0}${td?.fort_hill ? ' ⛰️'+(td.fort_hill) : ''}`
 
   cityCanvas.onclick = (e) => {
     let rect = cityCanvas.getBoundingClientRect()
@@ -932,10 +955,12 @@ function renderCityCanvas(t) {
     let my = (e.clientY - rect.top) * (cityCanvas.height/rect.height)
     let gc = Math.floor((mx - P) / T), gr = Math.floor((my - P) / T)
     if (gc>=0 && gr>=0 && gc<GS && gr<GS) {
-      if (grid[gr][gc] === null) {
+      let cell = grid[gr][gc]
+      let ter = (cell && typeof cell === 'object') ? (cell.t || 'plain') : 'plain'
+      if (!(cell && typeof cell === 'object' && cell.b) && ter !== 'water' && ter !== 'forest') {
         send('build', {tid:t.id, building:selectedTool, gx:gc, gy:gr})
-        if (!state.territories[t.id].grid) state.territories[t.id].grid = Array.from({length:8},()=>Array(8).fill(null))
-        state.territories[t.id].grid[gr][gc] = selectedTool
+        if (!state.territories[t.id].grid) state.territories[t.id].grid = defaultGrid()
+        state.territories[t.id].grid[gr][gc] = {t: ter, b: selectedTool}
         renderCityCanvas(t)
       }
     }

@@ -49,7 +49,7 @@ class StratGame:
             self.territories[t['id']] = {
                 'name': t['name'], 'lon': t['lon'], 'lat': t['lat'],
                 'cap': t.get('cap', False), 'adj': t['adj'], 'home': t.get('home'),
-                'owner': None, 'army': 0, 'units': {}, 'pop': 0, 'grid': None, 'buildings': []
+                'owner': None, 'army': 0, 'units': {}, 'pop': 0, 'grid': None, 'fort': 0, 'fort_hill': 0, 'buildings': []
             }
 
     def to_dict(self, pid=None):
@@ -153,20 +153,24 @@ class StratGame:
         return sum(self._t_atk(t) for t in self.territories.values() if t['owner'] == pid)
 
     def _atk_type_mult(self, utype, to_t):
-        """Bonus pierre-feuille-ciseaux (vs composition défense) + siège (murs)."""
+        """Bonus pierre-feuille-ciseaux (vs composition défense) + terrain + siège (murs)."""
         total = self._t_def(to_t)
+        prof = self._terrain_profile(to_t)
         mult = 1.0
         if total > 0:
             for d_type in UNIT_STATS:
                 d_count = to_t['army'] if d_type == 'soldier' else self._t_units(to_t).get(d_type, 0)
                 if d_count > 0:
                     w = (d_count * UNIT_STATS[d_type]['d']) / total
+                    if utype == 'cavalry' and d_type == 'soldier':
+                        w *= prof['plain_ratio']   # la charge ne marche pas en forêt/colline
                     mult += (COUNTER[utype][d_type] - 1) * w
         fort = to_t.get('fort', 0)
+        fort_hill = to_t.get('fort_hill', 0)
         if utype == 'elephant':
-            mult += 0.25 * fort            # les éléphants percent les murs
+            mult += 0.25 * (fort + fort_hill)      # les éléphants percent les murs
         else:
-            mult *= max(0.3, 1 - 0.1 * fort)  # les murs réduisent l'attaque
+            mult *= max(0.3, 1 - 0.1 * fort)       # les murs réduisent l'attaque
         return mult
 
     def _empire_setup(self, eid, pids):
@@ -182,7 +186,7 @@ class StratGame:
         cap_t['army'] = base_army
         cap_t['units'] = {}
         cap_t['pop'] = 5000
-        cap_t['grid'] = self._make_grid()
+        cap_t['grid'] = self._make_grid(cap_tid)
         cap_t['home'] = eid
         home_tids = [tid for tid, t in self.territories.items() if t.get('home') == eid]
         rest = [tid for tid in home_tids if tid != cap_tid]
@@ -192,7 +196,7 @@ class StratGame:
             t['army'] = base_army
             t['units'] = {}
             t['pop'] = 1000
-            t['grid'] = self._make_grid()
+            t['grid'] = self._make_grid(tid)
 
     def distribute(self):
         """Give starting territories per empire, split round-robin among members"""
@@ -243,9 +247,82 @@ class StratGame:
                     t['army'] = base
                     t['units'] = {}
 
-    def _make_grid(self):
-        """8x8 interior grid"""
-        return [[None]*8 for _ in range(8)]
+    def _make_grid(self, tid=None):
+        """8x8 grille de ville unique, terrain généré de façon déterministe (seed = tid).
+        Cellule: {'t': terrain, 'b': bâtiment ou None}
+        Terrain: plain | water | beach | hill | forest | fertile"""
+        rnd = random.Random(tid) if tid is not None else random.Random()
+        GS = 8
+        grid = [[{'t': 'plain', 'b': None} for _ in range(GS)] for _ in range(GS)]
+        # Côte sur un côté (selon tid) OU ville intérieure avec lac
+        coastal = rnd.random() < 0.6
+        edge = (tid or 0) % 4
+        if coastal:
+            depth = rnd.randint(1, 2)
+            for row in range(GS):
+                for c in range(GS):
+                    if edge == 0: d = row
+                    elif edge == 1: d = c
+                    elif edge == 2: d = GS - 1 - row
+                    else: d = GS - 1 - c
+                    if d == 0:
+                        grid[row][c]['t'] = 'water'
+                    elif d < depth and rnd.random() < 0.55:
+                        grid[row][c]['t'] = 'water'
+        else:
+            lx, ly = rnd.randint(2, GS-3), rnd.randint(2, GS-3)
+            for _ in range(rnd.randint(1, 2)):
+                wx = min(GS-1, max(0, lx + rnd.randint(-1, 1)))
+                wy = min(GS-1, max(0, ly + rnd.randint(-1, 1)))
+                grid[wy][wx]['t'] = 'water'
+        # Plages : terre adjacente à la mer (eau touchant le bord)
+        def is_sea(r, c):
+            return grid[r][c]['t'] == 'water' and (r == 0 or r == GS-1 or c == 0 or c == GS-1)
+        for row in range(GS):
+            for c in range(GS):
+                if grid[row][c]['t'] != 'water' and any(
+                    row + dr in range(GS) and c + dc in range(GS) and is_sea(row + dr, c + dc)
+                    for dr, dc in ((0,1),(0,-1),(1,0),(-1,0))
+                ):
+                    grid[row][c]['t'] = 'beach'
+        # Collines (amas)
+        hx, hy = rnd.randint(1, GS-2), rnd.randint(1, GS-2)
+        for _ in range(8):
+            px = min(GS-1, max(0, hx + rnd.randint(-1, 1)))
+            py = min(GS-1, max(0, hy + rnd.randint(-1, 1)))
+            if grid[py][px]['t'] == 'plain':
+                grid[py][px]['t'] = 'hill'
+        # Forêts et terres fertiles sur des cases plain restantes
+        plain_cells = [(r, c) for r in range(GS) for c in range(GS) if grid[r][c]['t'] == 'plain']
+        rnd.shuffle(plain_cells)
+        n_forest = rnd.randint(2, 4)
+        n_fertile = rnd.randint(2, 3)
+        for idx, (r, c) in enumerate(plain_cells):
+            if idx < n_forest:
+                grid[r][c]['t'] = 'forest'
+            elif idx < n_forest + n_fertile:
+                grid[r][c]['t'] = 'fertile'
+        return grid
+
+    def _terrain_profile(self, t):
+        """Profil tactique du terrain d'un territoire."""
+        g = t.get('grid')
+        if not g:
+            return {'plain_ratio': 1.0, 'hills': 0, 'forests': 0, 'beach': False}
+        hills = forests = plain = beach = 0
+        for row in g:
+            for cell in row:
+                if isinstance(cell, str) or cell is None:
+                    plain += 1
+                    continue
+                ter = cell.get('t', 'plain') if isinstance(cell, dict) else 'plain'
+                if ter == 'hill': hills += 1
+                elif ter == 'forest': forests += 1
+                elif ter == 'beach': beach += 1
+                else: plain += 1
+        land = max(1, hills + forests + plain + beach)
+        return {'plain_ratio': (plain + beach) / land,
+                'hills': hills, 'forests': forests, 'beach': beach > 0}
 
     def process(self, pid, cmd, data):
         if cmd == 'state':
@@ -358,7 +435,10 @@ class StratGame:
                     self._take_army(ally_pid, take)
                     atk_assist += take
 
-            def_power = self._t_def(to_t) * (1 + to_t.get('fort', 0) * 0.2)
+            prof = self._terrain_profile(to_t)
+            if 'navy' in sent and not prof['beach']:
+                return {'error': 'Pas de plage pour débarquer (navires)'}
+            def_power = self._t_def(to_t) * (1 + (to_t.get('fort', 0) + 0.5 * to_t.get('fort_hill', 0)) * 0.2) * (1 + (prof['hills'] + prof['forests']) * 0.05)
             def_assist = 0
             if to_t['owner'] and to_t['owner'] in self.players:
                 for ally_pid in self._empire_pids_except(self._empire_of(to_t['owner']), to_t['owner']):
@@ -391,7 +471,7 @@ class StratGame:
                 to_t['army'] = new_units.pop('soldier', 0)
                 to_t['units'] = new_units
                 if not to_t['grid']:
-                    to_t['grid'] = self._make_grid()
+                    to_t['grid'] = self._make_grid(to_tid)
                 self._broadcast({'action':'battle','battle':{
                     'territory':to_t['name'],'attackerWins':True,
                     'attacker':pid,'defender':old_owner,
@@ -418,8 +498,21 @@ class StratGame:
             grid = t['grid']
             if not grid or gx < 0 or gy < 0 or gx >= 8 or gy >= 8:
                 return {'error': 'Position invalide'}
-            if grid[gy][gx] is not None:
+            cell = grid[gy][gx]
+            if not isinstance(cell, dict) or cell.get('t') in ('water', 'forest'):
+                return {'error': 'Terrain non constructible'}
+            if cell.get('b'):
                 return {'error': 'Case occupée'}
+            terrain = cell.get('t', 'plain')
+            if bid == 'port':
+                adj_water = any(
+                    gy + dr in range(8) and gx + dc in range(8)
+                    and isinstance(grid[gy + dr][gx + dc], dict)
+                    and grid[gy + dr][gx + dc].get('t') == 'water'
+                    for dr, dc in ((0,1),(0,-1),(1,0),(-1,0))
+                )
+                if not adj_water:
+                    return {'error': 'Le port doit être au bord de l\'eau'}
             costs = {'house':{'gold':30,'wood':20},'farm':{'gold':20},
                      'wall':{'stone':25},'barracks':{'gold':80,'wood':40},
                      'market':{'gold':50,'wood':30},'temple':{'gold':60,'stone':30},
@@ -431,11 +524,14 @@ class StratGame:
                     return {'error': f'{res} insuffisant'}
             for res, amt in c.items():
                 me[res] = me.get(res, 0) - amt
-            grid[gy][gx] = bid
+            cell['b'] = bid
             if bid == 'house': t['pop'] = (t.get('pop',0) or 0) + 500
-            if bid == 'farm': me['food'] = me.get('food',0) + 15
+            if bid == 'farm': me['food'] = me.get('food',0) + (22 if terrain == 'fertile' else 15)
             if bid == 'market': me['gold'] = me.get('gold',0) + 10
-            if bid == 'wall': t['fort'] = t.get('fort',0) + 1
+            if bid == 'wall':
+                t['fort'] = t.get('fort',0) + 1
+                if terrain == 'hill':
+                    t['fort_hill'] = t.get('fort_hill',0) + 1   # mur sur colline = défense +50%
             if bid == 'barracks': me['army_rate'] = me.get('army_rate',0) + 2
             return {'ok': True, **self.to_dict(pid)}
 
