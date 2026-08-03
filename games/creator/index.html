@@ -43,7 +43,7 @@
 
 <div id="game-ui" style="display:none">
   <div id="hud">
-    <span id="hud-empire"></span>
+    <span id="hud-empire"></span><button class="info-btn" title="Histoire de l'empire" onclick="showEmpireHist()">❓</button>
     <span id="hud-turn">Tour 0</span>
     <span id="hud-gold">💰0</span>
     <span id="hud-food">🌾0</span>
@@ -69,17 +69,27 @@
 <div id="city-view" style="display:none">
   <div class="city-header">
     <h2 id="city-title"></h2>
+    <button class="info-btn" title="Histoire de la ville" onclick="showCityHist()">❓</button>
     <div id="city-stats"></div>
     <button onclick="closeCity()" class="close-btn">✕</button>
   </div>
+  <div id="city-hist" class="city-hist"></div>
   <canvas id="city-canvas"></canvas>
   <div id="city-tools" class="city-tools"></div>
   <div id="city-msg"></div>
 </div>
 
+<div id="hist-modal" class="hist-modal" style="display:none" onclick="closeHist(event)">
+  <div class="hist-box">
+    <button class="close-btn" onclick="closeHist(event)">✕</button>
+    <h3 id="hist-title"></h3>
+    <p id="hist-text"></p>
+  </div>
+</div>
+
 <div id="toast-box"></div>
 <div id="battle-banner"></div>
 
-<script type="module" src="js/main.js?v=23"></script>
+<script type="module" src="js/main.js?v=24"></script>
 </body>
 </html>

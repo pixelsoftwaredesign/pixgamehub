@@ -5,7 +5,7 @@
 import { $, fmt, GID, ST, empInfo, ownerColor, empireOf, terrainProfile, unitsOf, tDef } from './modules/state.js?v=2';
 import { bpRun } from './modules/blueprint.js?v=2';
 import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx } from './modules/motion.js?v=13';
-import { t as tr, tErr, tBot, applyLang, setLang, terrName } from './modules/i18n.js?v=5';
+import { t as tr, tErr, tBot, applyLang, setLang, terrName, cityHist, empireHist } from './modules/i18n.js?v=6';
 
 /* ─── Chargement initial : on récupère la config (empires) pour l'écran de login ─── */
 async function init() {
@@ -478,10 +478,35 @@ function openCity() {
 }
 function closeCity() { ST.cityTid = null; $('city-view').style.display = 'none'; }
 
+/* ─── Historique (ville & empire) ─── */
+function showHist(title, text) {
+  if (!text) return;
+  $('hist-title').textContent = title;
+  $('hist-text').textContent = text;
+  $('hist-modal').style.display = 'flex';
+}
+function showCityHist() {
+  const t = ST.cityTid != null ? ST.state.territories[ST.cityTid] : (ST.selected != null ? ST.state.territories[ST.selected] : null);
+  if (!t) return;
+  showHist((t.cap ? '🏰 ' : '🏘 ') + (terrName(t.id) || t.name), cityHist(t.id));
+}
+function showEmpireHist(eid) {
+  const id = eid || ST.myEmpire;
+  const e = empInfo(id);
+  if (!e) return;
+  showHist(`${e.icon} ${e.name}`, empireHist(id));
+}
+function closeHist(e) {
+  const t = e && e.target;
+  if (!t || !t.closest('.hist-box') || t.closest('.close-btn')) { $('hist-modal').style.display = 'none'; }
+}
+
 function renderCity() {
   const t = ST.state.territories[ST.cityTid];
   if (!t) { closeCity(); return; }
   $('city-title').textContent = (t.cap ? '🏰' : '🏘') + ' ' + (terrName(t.id) || t.name);
+  const hist = cityHist(t.id);
+  $('city-hist').textContent = hist ? '📜 ' + hist : '';
   $('city-stats').textContent = `👥${fmt(t.pop || 0)} ⚔️${fmt(t.army || 0)} 🧱${t.fort || 0}`;
   const gs = ST.config.grid_size || 8;
   const cv = $('city-canvas');
@@ -539,7 +564,7 @@ function renderLegend() {
   let html = `<h4>${tr('legend.title')}</h4>`;
   for (const [eid, e] of Object.entries(ST.state.empires)) {
     const isMe = eid === ST.myEmpire;
-    html += `<div class="legend-row ${isMe ? 'you' : ''}"><span class="swatch" style="background:${e.color}"></span><span class="ename">${e.icon} ${e.name}</span><span class="yours">${fmt(e.army)}⚔️ ${fmt(e.pop)}👥</span><span class="ewar">${e.wars.length ? '⚔️' : ''}</span></div>`;
+    html += `<div class="legend-row ${isMe ? 'you' : ''}"><span class="swatch" style="background:${e.color}"></span><span class="ename">${e.icon} ${e.name}</span><span class="yours">${fmt(e.army)}⚔️ ${fmt(e.pop)}👥</span><span class="ewar">${e.wars.length ? '⚔️' : ''}</span><button class="info-btn" title="Histoire" onclick="showEmpireHist('${eid}')">❓</button></div>`;
   }
   el.innerHTML = html;
 }
@@ -607,6 +632,7 @@ Object.assign(window, {
   toggleAttack, toggleConvert, toggleMove,
   toggleAttackTarget, updatePreview,
   setLang, tErr, tBot,
+  showCityHist, showEmpireHist, closeHist,
 });
 
 init();
