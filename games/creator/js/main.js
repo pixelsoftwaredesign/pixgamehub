@@ -2,9 +2,9 @@
    Point d'entrée : coordonne les modules (state, blueprint, motion) et expose sur
    window les fonctions appelées par les attributs onclick du HTML. */
 
-import { $, fmt, GID, ST, empInfo, ownerColor, empireOf, terrainProfile, unitsOf, tDef } from './modules/state.js';
-import { bpRun } from './modules/blueprint.js';
-import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D } from './modules/motion.js';
+import { $, fmt, GID, ST, empInfo, ownerColor, empireOf, terrainProfile, unitsOf, tDef } from './modules/state.js?v=2';
+import { bpRun } from './modules/blueprint.js?v=2';
+import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D } from './modules/motion.js?v=2';
 
 /* ─── Chargement initial : on récupère la config (empires) pour l'écran de login ─── */
 async function init() {

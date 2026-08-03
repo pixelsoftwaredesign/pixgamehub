@@ -2,8 +2,8 @@
    Compile le code du blueprint (hooks JS) et l'invoque au moment des
    événements de jeu (état, tour, combat, fin de tour). */
 
-import { $, ST } from './state.js';
-import { send, toast, banner } from '../main.js';
+import { $, ST } from './state.js?v=2';
+import { send, toast, banner } from '../main.js?v=2';
 
 export function buildBlueprint(code) {
   try {

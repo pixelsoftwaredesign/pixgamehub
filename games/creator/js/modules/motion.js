@@ -2,9 +2,9 @@
    Options de rendu pilotées par config.render (définies dans le Studio,
    section « Rendu 3D »). Bascule 2D ↔ 3D, marqueurs de territoires, picking. */
 
-import { $, ST } from './state.js';
-import { colorOfEmpire, empireOf } from './state.js';
-import { selectTerr, toast } from '../main.js';
+import { $, ST } from './state.js?v=2';
+import { colorOfEmpire, empireOf } from './state.js?v=2';
+import { selectTerr, toast, renderMap } from '../main.js?v=2';
 
 export function renderOptions() {
   const r = (ST.config && ST.config.render) || ST.renderCfg || {};
