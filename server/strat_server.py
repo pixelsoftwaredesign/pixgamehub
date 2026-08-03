@@ -515,7 +515,7 @@ class StratGame:
                     return {'error': 'Le port doit être au bord de l\'eau'}
             costs = {'house':{'gold':30,'wood':20},'farm':{'gold':20},
                      'wall':{'stone':25},'barracks':{'gold':80,'wood':40},
-                     'market':{'gold':50,'wood':30},'temple':{'gold':60,'stone':30},
+                     'temple':{'gold':60,'stone':30},
                      'port':{'gold':100,'wood':80}}
             c = costs.get(bid)
             if not c: return {'error': 'Bâtiment inconnu'}
@@ -527,7 +527,6 @@ class StratGame:
             cell['b'] = bid
             if bid == 'house': t['pop'] = (t.get('pop',0) or 0) + 500
             if bid == 'farm': me['food'] = me.get('food',0) + (22 if terrain == 'fertile' else 15)
-            if bid == 'market': me['gold'] = me.get('gold',0) + 10
             if bid == 'wall':
                 t['fort'] = t.get('fort',0) + 1
                 if terrain == 'hill':

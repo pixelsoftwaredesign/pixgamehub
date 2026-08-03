@@ -83,9 +83,8 @@ const BUILDINGS = {
   farm:{name:'Ferme',icon:'🌾',cost:{gold:20},food:15},
   wall:{name:'Mur',icon:'🧱',cost:{stone:25},defense:1},
   barracks:{name:'Caserne',icon:'⚔️',cost:{gold:80,wood:40},army:2},
-  market:{name:'Marché',icon:'💰',cost:{gold:50,wood:30},gold:10},
   temple:{name:'Temple',icon:'☥',cost:{gold:60,stone:30},mood:5},
-  port:{name:'Port',icon:'⚓',cost:{gold:100,wood:80},trade:15},
+  port:{name:'Port',icon:'⚓',cost:{gold:100,wood:80}},
 }
 
 // ─── State ────────────────────────────────────────────────────────
@@ -902,7 +901,7 @@ function renderCityActions(t) {
 function renderCityTools() {
   let el = document.getElementById('city-tools')
   if (el.children.length > 0) return
-  let tools = [['house','🏠 Maison'],['farm','🌾 Ferme'],['wall','🧱 Mur'],['barracks','⚔️ Caserne'],['market','💰 Marché'],['temple','☥ Temple'],['port','⚓ Port']]
+  let tools = [['house','🏠 Maison'],['farm','🌾 Ferme'],['wall','🧱 Mur'],['barracks','⚔️ Caserne'],['temple','☥ Temple'],['port','⚓ Port']]
   for (let [k,v] of tools) {
     let b = document.createElement('button')
     b.textContent = v
@@ -933,8 +932,8 @@ function renderCityCanvas(t) {
     forest:  {col:'#0f2212', icon:'🌲'},
     fertile: {col:'#16260e', icon:'🌾'},
   }
-  const BUILD_COLS = {house:'#2a1a12',farm:'#1a2a12',wall:'#3a1a12',barracks:'#2a1210',market:'#2a2a10',temple:'#1a102a',port:'#101a2a'}
-  const BUILD_ICONS = {house:'🏠',farm:'🌾',wall:'🧱',barracks:'⚔️',market:'💰',temple:'☥',port:'⚓'}
+  const BUILD_COLS = {house:'#2a1a12',farm:'#1a2a12',wall:'#3a1a12',barracks:'#2a1210',temple:'#1a102a',port:'#101a2a'}
+  const BUILD_ICONS = {house:'🏠',farm:'🌾',wall:'🧱',barracks:'⚔️',temple:'☥',port:'⚓'}
 
   for (let row=0; row<GS; row++) {
     for (let c=0; c<GS; c++) {
