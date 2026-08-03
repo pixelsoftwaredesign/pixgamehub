@@ -608,15 +608,21 @@ async def ws_handler(conn):
                     gold = food = wood = stone = 0
                 g.players[pid] = {'name':name, '_pid':pid, 'conn':conn, 'empire':empire,
                     'gold':gold, 'food':food, 'wood':wood, 'stone':stone, 'ready':False}
-                if len(g.players) >= 2 and g.phase == 'waiting':
-                    g.distribute()
-                    await g._send_personalized(exclude_conn=conn)
-                    await conn.send(json.dumps({'action':'state','state':g.to_dict(pid)}))
-                elif g.phase == 'playing':
-                    g.admit(pid)
-                    await g._send_personalized(exclude_conn=conn)
-                    await conn.send(json.dumps({'action':'state','state':g.to_dict(pid)}))
+                g.last_human = time.time()
+                if g.phase == 'waiting':
+                    g.ensure_bots()   # les empires sans humain reçoivent un bot IA
+                    if len(g.players) >= 2:
+                        g.distribute()
+                        await g._send_personalized(exclude_conn=conn)
+                        await conn.send(json.dumps({'action':'state','state':g.to_dict(pid)}))
+                    else:
+                        await conn.send(json.dumps({'action':'state','state':g.to_dict(pid)}))
                 else:
+                    # partie en cours : un bot cède l'empire si un humain le rejoint
+                    g.take_over(pid, empire)
+                    g.admit(pid)
+                    g.ensure_bots()
+                    await g._send_personalized(exclude_conn=conn)
                     await conn.send(json.dumps({'action':'state','state':g.to_dict(pid)}))
             elif action == 'cmd' and pid:
                 g = _get_room(_pid_room.get(pid, gid))
@@ -634,18 +640,77 @@ async def ws_handler(conn):
     finally:
         g = _get_room(_pid_room.get(pid, gid))
         if pid and pid in g.players and g.players[pid].get('conn') is conn:
+            empire = g.players[pid].get('empire')
             del g.players[pid]
-        if not g.players:
-            g.phase = 'waiting'
-            g.wars.clear()
-            for t in g.territories.values():
-                t['owner'] = None
-                t['army'] = 0
-                t['pop'] = 0
-                t['home'] = None
+            if g.phase == 'playing':
+                # l'empire abandonné est défendu par un bot jusqu'à un humain
+                g.ensure_bots()
+            elif not any(not p.get('ai') for p in g.players.values()):
+                _reset_room(g)
+
+def _reset_room(g):
+    """Remet une salle à zéro (attente, aucun bot ni joueur)."""
+    g.phase = 'waiting'
+    g.turn = 0
+    g.wars.clear()
+    g.players.clear()
+    for t in g.territories.values():
+        t['owner'] = None
+        t['army'] = 0
+        t['units'] = {}
+        t['pop'] = 0
+        t['home'] = None
+        t['fort'] = 0
+        t['fort_hill'] = 0
+        t['buildings'] = []
+        t['grid'] = None
+
+BOT_TICK = 0.5          # rythme de vérification des tours de bots
+BOT_IDLE_RESET = 900    # reset d'une salle 100% bots restée sans humain (s)
+BOT_RUNNING = {}        # (gid, pid) -> tâche en cours
+
+async def _run_bot_turn(g, pid):
+    """Un tour de bot : décisions puis fin de tour automatique (avec délai)."""
+    import traceback
+    try:
+        await asyncio.sleep(random.uniform(0.3, 1.0))
+        try:
+            g.bot_act(pid)
+        except Exception:
+            traceback.print_exc()
+        if pid not in g.players or g.players[pid].get('ready'):
+            return
+        await asyncio.sleep(random.uniform(0.2, 0.8))
+        try:
+            g.process(pid, 'ready', {})
+        except Exception:
+            traceback.print_exc()
+    except Exception:
+        traceback.print_exc()
+
+async def _bot_manager():
+    """Chaque empire sans humain joue à chaque tour : les bots agissent puis
+    terminent leur tour en parallèle. Une salle restée sans humain trop
+    longtemps est remise à zéro."""
+    while True:
+        await asyncio.sleep(BOT_TICK)
+        now = time.time()
+        for gid in list(GAME_ROOMS.keys()):
+            g = GAME_ROOMS[gid]
+            if g.phase != 'playing':
+                continue
+            if not g._human_pids() and now - g.last_human > BOT_IDLE_RESET:
+                _reset_room(g)
+                continue
+            for pid, p in list(g.players.items()):
+                if p.get('ai') and not p.get('ready') and (gid, pid) not in BOT_RUNNING:
+                    BOT_RUNNING[(gid, pid)] = asyncio.create_task(_run_bot_turn(g, pid))
+            for k in [k for k in BOT_RUNNING if BOT_RUNNING[k].done()]:
+                BOT_RUNNING.pop(k)
 
 async def main():
     init_db()
+    asyncio.create_task(_bot_manager())
     mode = os.environ.get('MODE') or ('single' if os.environ.get('PORT') else 'both')
     port_ws = int(os.environ.get('PORT_WS', os.environ.get('PORT', 8081)))
 

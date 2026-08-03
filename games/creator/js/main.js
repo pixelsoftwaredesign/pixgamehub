@@ -103,6 +103,8 @@ function onMsg(m) {
   } else if (m.action === 'war') {
     const w = m.war;
     banner(`⚔️ GUERRE : ${w.declared} vs ${w.target}`, 'war');
+  } else if (m.action === 'bot') {
+    toast(`🤖 ${m.bot.icon || ''} ${m.bot.empire} : ${m.bot.msg}`, 'info');
   } else if (m.action === 'game_over') {
     toast(m.winner ? `🏆 Victoire de ${m.winner}` : 'Partie terminée', 'win');
   }

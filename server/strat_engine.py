@@ -180,6 +180,7 @@ class StrategyEngine:
         self.turn = 0
         self.wars = {}          # empire -> set(empires) — guerre permanente, symétrique
         self.phase = 'waiting'  # waiting | playing | done
+        self.last_human = 0     # timestamp du dernier joueur humain (gestion bots seuls)
         self.territories = {}   # tid -> état du territoire (dont données carte)
         for t in self._cfg['territories']:
             self.territories[t['id']] = {
@@ -749,6 +750,196 @@ class StrategyEngine:
             return {'ok': True, **self.to_dict(pid)}
 
         return {'error': 'Commande inconnue'}
+
+    # ─── Bots IA (empires sans joueur humain) ─────────────────────
+    def _bot_pids(self, empire=None):
+        return [pid for pid, p in self.players.items()
+                if p.get('ai') and (empire is None or p.get('empire') == empire)]
+
+    def _human_pids(self):
+        return [pid for pid, p in self.players.items() if not p.get('ai')]
+
+    def ensure_bots(self):
+        """Remplit d'un bot IA chaque empire sans joueur humain.
+        Le bot prend la défense du territoire jusqu'à l'arrivée d'un humain."""
+        if self.phase != 'playing' and not self._human_pids():
+            return False
+        human_empires = {p.get('empire') for p in self.players.values() if not p.get('ai')}
+        added = False
+        for eid, info in self._cfg['empires'].items():
+            if eid in human_empires:
+                continue
+            pid = 'ai_' + eid
+            if pid in self.players:
+                continue
+            self.players[pid] = {'name': '🤖 ' + info.get('name', eid), '_pid': pid,
+                                 'conn': None, 'empire': eid, 'ai': True,
+                                 'gold': 0, 'food': 0, 'wood': 0, 'stone': 0, 'ready': False}
+            if self.phase == 'playing':
+                st = self._cfg['start']
+                self.players[pid]['gold'] = st.get('gold', 100)
+                self.players[pid]['food'] = st.get('food', 100)
+                self._empire_setup(eid, [pid])
+            added = True
+        return added
+
+    def take_over(self, human_pid, empire):
+        """Un humain prend le contrôle de son empire : le bot cède le territoire."""
+        bots = self._bot_pids(empire)
+        if not bots:
+            return False
+        bot = bots[0]
+        me = self.players.get(human_pid)
+        bp = self.players[bot]
+        if me:
+            for k in ('gold', 'food', 'wood', 'stone'):
+                me[k] = (me.get(k) or 0) + (bp.get(k) or 0)
+        for t in self.territories.values():
+            if t['owner'] == bot:
+                t['owner'] = human_pid
+        del self.players[bot]
+        return True
+
+    def _bot_talk(self, pid, msg):
+        info = self._cfg['empires'].get(self.players[pid].get('empire'), {})
+        self._broadcast({'action': 'bot', 'bot': {'empire': info.get('name', ''),
+                                                  'icon': info.get('icon', '🤖'), 'msg': msg}})
+
+    def bot_act(self, pid):
+        """Décisions d'un tour pour un bot : recruter, construire, renforcer,
+        attaquer. Passe par les commandes normales (broadcast + état partagé)."""
+        p = self.players.get(pid)
+        if not p or not p.get('ai') or self.phase != 'playing':
+            return
+        my = [(tid, t) for tid, t in self.territories.items() if t['owner'] == pid]
+        if not my:
+            return
+        emp = p['empire']
+        cap_tid = self._cfg['empires'].get(emp, {}).get('capital')
+        cap = self.territories.get(cap_tid) if cap_tid is not None else None
+
+        # 1. Recrute à la capitale (ou au territoire le plus fort)
+        gold = p.get('gold') or 0
+        if gold > 40 and random.random() < 0.85:
+            if cap and cap['owner'] == pid:
+                target_tid, target = cap_tid, cap
+            else:
+                target_tid, target = max(my, key=lambda kv: kv[1].get('army', 0))
+            amt = min(int(gold * 1.8), 140)
+            if amt >= 20:
+                self.process(pid, 'recruit', {'tid': target_tid, 'amount': amt})
+
+        # 2. Convertit quelques soldats en unités fortes à la capitale
+        if cap and cap['owner'] == pid and cap.get('army', 0) >= 80 and random.random() < 0.5:
+            u = 'elephant' if 'elephant' in self.units else next(
+                (k for k in self.units if k != 'soldier'), None)
+            if u:
+                amt = max(1, int(cap['army'] / (self.units[u]['cost'] * 2)))
+                if amt:
+                    self.process(pid, 'convert', {'tid': cap_tid, 'unit': u, 'amount': amt})
+
+        # 3. Construit dans la capitale
+        if cap and cap['owner'] == pid:
+            self._bot_build(pid, cap_tid)
+
+        # 4. Renforce les frontières
+        self._bot_move(pid, my)
+
+        # 5. Attaque le voisin le plus faible
+        self._bot_attack(pid, my)
+
+    def _bot_build(self, pid, tid):
+        t = self.territories.get(tid)
+        if not t:
+            return
+        grid = t.get('grid')
+        if not grid:
+            return
+        GS = self._cfg.get('grid_size', 8)
+        built = {cell.get('b') for row in grid for cell in row
+                 if isinstance(cell, dict) and cell.get('b')}
+        want = []
+        if 'wall' in self.buildings and 'wall' not in built and not t.get('fort'):
+            want.append((1, 'wall'))
+        for bid, prio in (('barracks', 2), ('farm', 3), ('house', 4), ('temple', 5)):
+            if bid in self.buildings and bid not in built:
+                want.append((prio, bid))
+        want.sort()
+        for _, bid in want:
+            bcfg = self.buildings.get(bid)
+            if not bcfg:
+                continue
+            res_ok = all((self.players.get(pid, {}).get(res, 0) >= amt)
+                         for res, amt in bcfg.get('cost', {}).items())
+            if not res_ok:
+                continue
+            for gy in range(GS):
+                for gx in range(GS):
+                    cell = grid[gy][gx]
+                    if not isinstance(cell, dict) or cell.get('b'):
+                        continue
+                    if not self._terrain_flag(cell.get('t', 'plain'), 'buildable', True):
+                        continue
+                    if bid == 'port' and not any(
+                        gy + dr in range(GS) and gx + dc in range(GS)
+                        and isinstance(grid[gy + dr][gx + dc], dict)
+                        and self._terrain_flag(grid[gy + dr][gx + dc].get('t', ''), 'sea')
+                        for dr, dc in ((0, 1), (0, -1), (1, 0), (-1, 0))
+                    ):
+                        continue
+                    res = self.process(pid, 'build', {'tid': tid, 'building': bid, 'gx': gx, 'gy': gy})
+                    if isinstance(res, dict) and 'error' in res:
+                        continue
+                    self._bot_talk(pid, f'construit {bcfg.get("name", bid)}')
+                    return
+
+    def _bot_move(self, pid, my):
+        emp = self.players[pid]['empire']
+        border = [kv for kv in my if any(
+            (a := self.territories.get(n)) and (not a['owner'] or self._empire_of(a['owner']) != emp)
+            for n in kv[1].get('adj', []))]
+        sources = [kv for kv in my if kv[1].get('army', 0) >= 150]
+        if not border or not sources or random.random() < 0.3:
+            return
+        source_tid, source = max(sources, key=lambda kv: kv[1]['army'])
+        dest_tid, dest = min(border, key=lambda kv: kv[1]['army'])
+        if dest_tid == source_tid or dest.get('army', 0) > source['army'] * 0.6:
+            return
+        amt = int(source['army'] * 0.4)
+        if amt >= 40:
+            res = self.process(pid, 'move', {'tid': source_tid, 'to': dest_tid, 'amount': amt})
+            if isinstance(res, dict) and 'error' not in res:
+                self._bot_talk(pid, 'renforce ses frontières')
+
+    def _bot_attack(self, pid, my):
+        emp = self.players[pid]['empire']
+        attacks = 0
+        for tid, t in my:
+            if attacks >= 2:
+                break
+            for nid in t.get('adj', []):
+                a = self.territories.get(nid)
+                if not a:
+                    continue
+                if a['owner'] and self._empire_of(a['owner']) == emp:
+                    continue
+                pool = t.get('army', 0) + sum(self._t_units(t).values())
+                if pool < 70:
+                    break
+                def_p = self._t_def(a)
+                send = int(t['army'] * 0.7) if t['army'] >= 30 else 0
+                units = {u: max(0, int(n * 0.7)) for u, n in self._t_units(t).items() if n > 0}
+                if send <= 0 and not units:
+                    break
+                atk_p = (send or 0) + sum(n * self.units[u]['a'] for u, n in units.items())
+                if atk_p > def_p * 1.15 and random.random() < 0.55:
+                    res = self.process(pid, 'attack', {
+                        'tid': tid, 'to': nid,
+                        'units': {**({'soldier': send} if send else {}), **units}})
+                    if isinstance(res, dict) and 'error' in res:
+                        continue
+                    attacks += 1
+                    break
 
     # ─── Tour / économie / victoire ──────────────────────────────
     def _next_turn(self):
