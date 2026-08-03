@@ -123,7 +123,7 @@ export function buildGlobeMarkers() {
       }));
       m.userData.tid = t.id;
       m.userData.base = t.cap ? 2.0 : 1.0;
-      m.position.copy(ll2xyz(t.lon, t.lat, opts.radius * 1.02, c.THREE));
+      m.position.copy(ll2xyz(t.lon, t.lat, opts.radius * 1.005, c.THREE));
       c.markers.set(t.id, m);
     }
   }
@@ -160,8 +160,9 @@ function makeLabel(c, t) {
   g.fillText(name, cv.width / 2, sh / 2);
   const tex = new c.THREE.CanvasTexture(cv);
   const spr = new c.THREE.Sprite(new c.THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-  spr.position.copy(ll2xyz(t.lon, t.lat, c.opts.radius * 1.1, c.THREE));
+  const mr = c.opts.radius * c.opts.markerSize * 2 * (c.opts.markerScale || 1);
   const k = c.opts.radius * 0.085 * (c.opts.labelScale || 1) / 6.6667;
+  spr.position.copy(ll2xyz(t.lon, t.lat, c.opts.radius * 1.005 + mr + k / 2, c.THREE));
   spr.scale.set(k * (cv.width / sh), k, 1);
   spr.userData.tid = t.id;
   return spr;
