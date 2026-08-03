@@ -153,11 +153,11 @@ function makeLabel(c, t) {
   cv.width = Math.max(48, tw);
   g = cv.getContext('2d');
   g.font = '600 28px system-ui, sans-serif';
-  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.textAlign = 'center'; g.textBaseline = 'bottom';
   g.lineWidth = 5; g.strokeStyle = 'rgba(0,0,0,0.75)';
-  g.strokeText(name, cv.width / 2, sh / 2);
+  g.strokeText(name, cv.width / 2, sh - 6);
   g.fillStyle = '#f4f7ff';
-  g.fillText(name, cv.width / 2, sh / 2);
+  g.fillText(name, cv.width / 2, sh - 6);
   const tex = new c.THREE.CanvasTexture(cv);
   const spr = new c.THREE.Sprite(new c.THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
   const mr = c.opts.radius * c.opts.markerSize * 2 * (c.opts.markerScale || 1);
