@@ -219,8 +219,10 @@ class StratGame:
         p = self.players.get(pid)
         if not p:
             return
-        p['gold'] = 100
-        p['food'] = 100
+        owns_any = any(t['owner'] == pid for t in self.territories.values())
+        if not owns_any:
+            p['gold'] = 100
+            p['food'] = 100
         empire = p.get('empire', 'carthage')
         members = self._empire_pids(empire)
         if len(members) < 2:
@@ -831,14 +833,21 @@ async def ws_handler(conn):
                     empire = 'carthage'
                 # Reconnect: reuse the last pid for this name so ownership is kept
                 last = _last_pid.get(name)
-                if last is not None and last not in game.players:
+                if last is not None:
                     pid = last
                 else:
                     _pid_counter += 1
                     pid = f'p{_pid_counter}'
                 _last_pid[name] = pid
+                old = game.players.get(pid)
+                if old:
+                    # même joueur (autre dispositif): garde empire, soldats et ressources
+                    empire = old.get('empire', empire)
+                    gold, food, wood, stone = old['gold'], old['food'], old['wood'], old['stone']
+                else:
+                    gold = food = wood = stone = 0
                 game.players[pid] = {'name':name, '_pid':pid, 'conn':conn, 'empire':empire,
-                    'gold':0, 'food':0, 'wood':0, 'stone':0, 'ready':False}
+                    'gold':gold, 'food':food, 'wood':wood, 'stone':stone, 'ready':False}
                 if len(game.players) >= 2 and game.phase == 'waiting':
                     game.distribute()
                     await game._send_personalized(exclude_conn=conn)
@@ -862,7 +871,7 @@ async def ws_handler(conn):
     except:
         import traceback; traceback.print_exc()
     finally:
-        if pid and pid in game.players:
+        if pid and pid in game.players and game.players[pid].get('conn') is conn:
             del game.players[pid]
         if not game.players:
             game.phase = 'waiting'
