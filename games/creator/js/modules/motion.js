@@ -116,7 +116,7 @@ export function buildGlobeMarkers() {
   const ts = Object.values(ST.state.territories);
   if (c.markers.size !== ts.length || c.markers.size === 0) {
     c.markers = new Map();
-    const geo = new c.THREE.SphereGeometry(opts.radius * opts.markerSize * opts.markerScale, 10, 8);
+    const geo = new c.THREE.SphereGeometry(opts.radius * opts.markerSize * 2 * opts.markerScale, 10, 8);
     for (const t of ts) {
       const m = new c.THREE.Mesh(geo, new c.THREE.MeshBasicMaterial({
         color: 0x555555, transparent: true, opacity: opts.markerOpacity, depthWrite: false
@@ -161,7 +161,7 @@ function makeLabel(c, t) {
   const tex = new c.THREE.CanvasTexture(cv);
   const spr = new c.THREE.Sprite(new c.THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
   spr.position.copy(ll2xyz(t.lon, t.lat, c.opts.radius * 1.1, c.THREE));
-  const k = c.opts.radius * 0.085 * (c.opts.labelScale || 1) / 20;
+  const k = c.opts.radius * 0.085 * (c.opts.labelScale || 1) / 6.6667;
   spr.scale.set(k * (cv.width / sh), k, 1);
   spr.userData.tid = t.id;
   return spr;

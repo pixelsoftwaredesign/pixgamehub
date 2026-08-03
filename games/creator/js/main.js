@@ -4,7 +4,7 @@
 
 import { $, fmt, GID, ST, empInfo, ownerColor, empireOf, terrainProfile, unitsOf, tDef } from './modules/state.js?v=2';
 import { bpRun } from './modules/blueprint.js?v=2';
-import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx } from './modules/motion.js?v=9';
+import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx } from './modules/motion.js?v=11';
 import { t as tr, tErr, tBot, applyLang, setLang, terrName } from './modules/i18n.js?v=5';
 
 /* ─── Chargement initial : on récupère la config (empires) pour l'écran de login ─── */
