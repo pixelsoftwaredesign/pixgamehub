@@ -5,7 +5,7 @@
 import { $, ST } from './state.js?v=2';
 import { colorOfEmpire, empireOf } from './state.js?v=2';
 import { selectTerr, toast, renderMap } from '../main.js?v=2';
-import { t as tr } from './i18n.js?v=4';
+import { t as tr, terrName } from './i18n.js?v=5';
 
 export function renderOptions() {
   const r = (ST.config && ST.config.render) || ST.renderCfg || {};
@@ -143,7 +143,7 @@ export function buildGlobeMarkers() {
 }
 
 function makeLabel(c, t) {
-  const name = String(t.name || ('T' + t.id));
+  const name = String(terrName(t.id) || t.name || ('T' + t.id));
   const cv = document.createElement('canvas');
   const sh = 64;
   cv.width = 256; cv.height = sh;

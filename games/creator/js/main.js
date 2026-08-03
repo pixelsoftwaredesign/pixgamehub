@@ -4,8 +4,8 @@
 
 import { $, fmt, GID, ST, empInfo, ownerColor, empireOf, terrainProfile, unitsOf, tDef } from './modules/state.js?v=2';
 import { bpRun } from './modules/blueprint.js?v=2';
-import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx } from './modules/motion.js?v=8';
-import { t as tr, tErr, tBot, applyLang, setLang } from './modules/i18n.js?v=4';
+import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx } from './modules/motion.js?v=9';
+import { t as tr, tErr, tBot, applyLang, setLang, terrName } from './modules/i18n.js?v=5';
 
 /* ─── Chargement initial : on récupère la config (empires) pour l'écran de login ─── */
 async function init() {
@@ -239,7 +239,8 @@ function renderMap() {
     ctx.font = '10px system-ui';
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.textAlign = 'center';
-    const lab = t.owner && empireOf(t) === ST.myEmpire ? `${t.name} ${fmt(t.army || 0)}` : t.name;
+    const nm = terrName(t.id) || t.name;
+    const lab = t.owner && empireOf(t) === ST.myEmpire ? `${nm} ${fmt(t.army || 0)}` : nm;
     ctx.fillText(lab, x, y - r - 4);
   }
 }
@@ -279,7 +280,7 @@ function renderTerrBar() {
   const unitMix = Object.entries(unitsOf(t)).map(([u, n]) => `${ST.config.units[u].icon || '▪'}${n}`).join(' ') || '—';
 
   let html = '';
-  html += `<span class="terr-bar-info">${t.cap ? '🏰' : '🏘'} ${t.name}</span>`;
+  html += `<span class="terr-bar-info">${t.cap ? '🏰' : '🏘'} ${terrName(t.id) || t.name}</span>`;
   html += `<span class="terr-bar-hint">👥${fmt(t.pop || 0)} ⚔️${fmt(t.army || 0)} ${unitMix} ${t.fort ? '🧱' + t.fort : ''}${t.fort_hill ? '🏔' : ''}</span>`;
 
   if (mine) {
@@ -340,7 +341,7 @@ function renderMove() {
     .filter(x => x.owner && empireOf(x) === ST.myEmpire && x.id !== ST.selected)
     .sort((a, b) => a.name.localeCompare(b.name));
   let html = `<span class="terr-bar-hint">${tr('terr.moveTo')}</span><select class="tb-dest" id="move-dest">`;
-  for (const x of targets) html += `<option value="${x.id}">${x.name}</option>`;
+  for (const x of targets) html += `<option value="${x.id}">${terrName(x.id) || x.name}</option>`;
   html += '</select>';
   html += `<input class="tb-amount" id="move-amt" type="number" min="10" value="50">`;
   html += `<button class="tb-btn" onclick="doMove()">➡️</button>`;
@@ -381,7 +382,7 @@ function renderAttack() {
   let html = `<span class="terr-bar-hint">${tr('terr.attackTitle')}</span>`;
   html += '<select class="tb-dest" id="atk-dest" onchange="toggleAttackTarget(+this.value)">';
   html += `<option value="">${tr('terr.chooseTarget')}</option>`;
-  for (const x of targets) html += `<option value="${x.id}" ${ST.pendingAttack && ST.pendingAttack.to === x.id ? 'selected' : ''}>${x.name}</option>`;
+  for (const x of targets) html += `<option value="${x.id}" ${ST.pendingAttack && ST.pendingAttack.to === x.id ? 'selected' : ''}>${terrName(x.id) || x.name}</option>`;
   html += '</select>';
   html += '<span id="atk-units"></span>';
   html += '<span id="atk-preview"></span>';
@@ -480,7 +481,7 @@ function closeCity() { ST.cityTid = null; $('city-view').style.display = 'none';
 function renderCity() {
   const t = ST.state.territories[ST.cityTid];
   if (!t) { closeCity(); return; }
-  $('city-title').textContent = (t.cap ? '🏰' : '🏘') + ' ' + t.name;
+  $('city-title').textContent = (t.cap ? '🏰' : '🏘') + ' ' + (terrName(t.id) || t.name);
   $('city-stats').textContent = `👥${fmt(t.pop || 0)} ⚔️${fmt(t.army || 0)} 🧱${t.fort || 0}`;
   const gs = ST.config.grid_size || 8;
   const cv = $('city-canvas');
@@ -595,6 +596,7 @@ export { send, toast, banner, selectTerr, renderMap };
 
 window.__onLangChange = () => {
   if (ST.state && ST.myEmpire) render();
+  if (ST.threeCtx) { buildGlobeMarkers(); refreshGlobeColors(); }
 };
 
 /* ─── Fonctions globales appelées par les onclick du HTML ─── */
