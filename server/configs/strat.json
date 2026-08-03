@@ -319,6 +319,18 @@
       "capital": 118,
       "color": "#6c5ce7",
       "icon": "👑"
+    },
+    "inuit": {
+      "name": "Inuit",
+      "capital": 125,
+      "color": "#5dade2",
+      "icon": "🛷"
+    },
+    "inca": {
+      "name": "Inca",
+      "capital": 127,
+      "color": "#1f618d",
+      "icon": "🦙"
     }
   },
   "territories": [
@@ -1693,6 +1705,59 @@
       "home": "mali",
       "adj": [
         123
+      ]
+    },
+    {
+      "id": 125,
+      "name": "Nuuk",
+      "lon": -51.7,
+      "lat": 64.2,
+      "cap": true,
+      "home": "inuit",
+      "adj": [
+        126
+      ]
+    },
+    {
+      "id": 126,
+      "name": "Qeqertarsuaq",
+      "lon": -53.5,
+      "lat": 69.2,
+      "home": "inuit",
+      "adj": [
+        125
+      ]
+    },
+    {
+      "id": 127,
+      "name": "Cusco",
+      "lon": -71.97,
+      "lat": -13.53,
+      "cap": true,
+      "home": "inca",
+      "adj": [
+        128,
+        129
+      ]
+    },
+    {
+      "id": 128,
+      "name": "Machu Picchu",
+      "lon": -72.54,
+      "lat": -13.16,
+      "home": "inca",
+      "adj": [
+        127
+      ]
+    },
+    {
+      "id": 129,
+      "name": "Lima",
+      "lon": -77.04,
+      "lat": -12.05,
+      "home": "inca",
+      "adj": [
+        127
       ]
     }
   ],

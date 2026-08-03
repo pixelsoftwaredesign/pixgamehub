@@ -671,6 +671,7 @@ const TERR_NAMES = {
     '112': 'لاهور', '113': 'فاراناسي', '114': 'باتنا', '115': 'كلكتا', '116': 'بومباي',
     '117': 'مدراس', '118': 'تمبكتو', '119': 'غاو', '120': 'جينيه', '121': 'باماكو',
     '122': 'كومبي صالح', '123': 'أغاديس', '124': 'كانو',
+    '125': 'نوك', '126': 'ققرتارسوك', '127': 'كوسكو', '128': 'ماتشو بيتشو', '129': 'ليما',
   },
   ja: {
     '0': 'カルタゴ', '1': 'ウティカ', '2': 'ハドルメトゥム', '3': 'タプソス', '4': 'レプキス・マグナ',
@@ -698,6 +699,7 @@ const TERR_NAMES = {
     '112': 'ラホール', '113': 'バラナシ', '114': 'パトナ', '115': 'コルカタ', '116': 'ムンバイ',
     '117': 'チェンナイ', '118': 'トンブクトゥ', '119': 'ガオ', '120': 'ジェンネ', '121': 'バマコ',
     '122': 'クンビ・サレー', '123': 'アガデズ', '124': 'カノ',
+    '125': 'ヌーク', '126': 'ケケルタルスアーク', '127': 'クスコ', '128': 'マチュピチュ', '129': 'リマ',
   },
   zh: {
     '0': '迦太基', '1': '乌提卡', '2': '哈德鲁梅', '3': '塔普苏斯', '4': '大莱普提斯',
@@ -725,6 +727,7 @@ const TERR_NAMES = {
     '112': '拉合尔', '113': '瓦拉纳西', '114': '巴特那', '115': '加尔各答', '116': '孟买',
     '117': '金奈', '118': '廷巴克图', '119': '加奥', '120': '杰内', '121': '巴马科',
     '122': '昆比萨利赫', '123': '阿加德兹', '124': '卡诺',
+    '125': '努克', '126': '凯凯尔塔苏阿克', '127': '库斯科', '128': '马丘比丘', '129': '利马',
   },
 };
 
@@ -860,6 +863,11 @@ const CITY_HIST = {
   '122': 'Capitale de l\'empire du Ghana, port de l\'or du Sahel.',
   '123': 'Ville des caravanes du Sahel, célèbre pour ses éleveurs touaregs.',
   '124': 'Ville marchande du nord du Nigéria, foyer du commerce et de l\'artisanat.',
+  '125': 'Capitale du Groenland, plus ancienne colonie danoise du pays, fondée par Hans Egede.',
+  '126': 'Île arctique de la baie de Disko, village inuit aux baleines et aux falaises de basalte.',
+  '127': 'Ancienne capitale de l\'Empire inca, centre de l\'univers selon la cosmologie andine.',
+  '128': 'Cité inca perchée dans les Andes, redécouverte en 1911 par Hiram Bingham.',
+  '129': 'Ville fondée par Francisco Pizarro en 1535, la « ville des rois » du Pérou.',
 };
 
 export function cityHist(id) {
@@ -886,6 +894,8 @@ const EMPIRE_HIST = {
   australia: 'Colonies britanniques d\'Australasie devenues une nation des antipodes.',
   india: 'Subcontinent des empires Maurya et Moghol, berceau du bouddhisme et du yoga.',
   mali: 'Empire de l\'or et de l\'islam, de Soundiata à Mansa Moussa.',
+  inuit: 'Peuples de l\'Arctique et du Groenland, maîtres de l\'iceberg et du traîneau à chiens.',
+  inca: 'Empire du Soleil des Andes, de Cusco aux 40 000 km de routes du Qhapaq Ñan.',
 };
 
 export function empireHist(eid) {
