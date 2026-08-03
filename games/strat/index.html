@@ -2,79 +2,11 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="0; url=/games/creator/?gid=strat">
 <title>Stratégie</title>
-<link rel="stylesheet" href="css/style.css">
+<script>location.replace('/games/creator/?gid=strat');</script>
 </head>
 <body>
-
-<div id="login-screen">
-  <div class="login-box">
-    <h1>Stratégie</h1>
-    <p class="subtitle">Conquête & Civilisation</p>
-    <input id="user-input" type="text" placeholder="Nom d'utilisateur">
-    <input id="pass-input" type="password" placeholder="Mot de passe">
-    <div class="empire-pick">
-      <div class="empire-pick-title">Choisissez votre empire</div>
-      <div id="empire-buttons"></div>
-      <div id="empire-hint" class="empire-hint">Plusieurs joueurs peuvent choisir le même empire — population & soldats additionnés, attaques à la souris.</div>
-    </div>
-    <div class="btn-row">
-      <button onclick="doLogin()">Connexion</button>
-      <button onclick="doRegister()">Inscription</button>
-    </div>
-    <div id="login-err" class="err"></div>
-    <div id="login-status" class="status">Prêt</div>
-  </div>
-</div>
-
-<div id="game-ui" style="display:none">
-  <div id="hud">
-    <span id="hud-empire"></span>
-    <span id="hud-turn">Tour 0</span>
-    <span id="hud-gold">💰0</span>
-    <span id="hud-food">🌾0</span>
-    <span id="hud-wood">🪵0</span>
-    <span id="hud-stone">⛰0</span>
-    <span id="hud-army">⚔️0</span>
-    <span id="hud-pop">👥0</span>
-    <span id="hud-terr">🏘0</span>
-    <span id="hud-players"></span>
-    <button id="rotate-btn" onclick="toggleRotation()">⏸ Rotation</button>
-    <button id="zoom-btn" onclick="toggleZoom()">🔍 ×20</button>
-    <button id="legend-btn" onclick="toggleLegend()">🎨 Empires</button>
-    <button id="warlog-btn" onclick="toggleWarLog()">⚔️ Guerre</button>
-    <button id="end-turn-btn" onclick="endTurn()">⏭ Fin du tour</button>
-  </div>
-  <div id="war-log" style="display:none"></div>
-  <div id="empire-legend" style="display:none"></div>
-  <div id="map-container"></div>
-  <div id="terr-bar" style="display:none"></div>
-</div>
-
-<div id="city-view" style="display:none">
-  <div class="city-header">
-    <h2 id="city-title"></h2>
-    <div id="city-stats"></div>
-    <button onclick="closeCity()" class="close-btn">✕</button>
-  </div>
-  <canvas id="city-canvas"></canvas>
-  <div id="city-actions"></div>
-  <div id="city-tools" class="city-tools"></div>
-  <div id="city-msg"></div>
-</div>
-
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
-<script src="js/data.js?v=10"></script>
-<script>window.WS_URL = location.hostname === 'strat-http.onrender.com' ? "https://strat-ws.onrender.com" : null;</script>
-<script type="module" src="js/globe.js?v=12"></script>
-<script defer src="js/main.js?v=15"></script>
+<p><a href="/games/creator/?gid=strat">Stratégie — nouvelle version avec bots IA. Cliquez ici.</a></p>
 </body>
 </html>
