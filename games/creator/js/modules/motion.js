@@ -17,6 +17,9 @@ export function renderOptions() {
     speed: Number(g.speed) != null ? Number(g.speed) : 0.15,
     ocean: g.ocean || '#0b3d66',
     markerScale: Number(g.markerScale) || 0.9,
+    markerSize: Number(g.markerSize) || 0.055,
+    markerOpacity: g.markerOpacity != null ? Number(g.markerOpacity) : 1,
+    texture: g.texture || null,
   };
 }
 
@@ -54,7 +57,7 @@ async function init3D() {
     const starsGeo = new THREE.BufferGeometry();
     starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(makeStars(), 3));
     scene.add(new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0x8aa0c0, size: 0.02 })));
-    const ctx3 = { THREE, scene, camera, renderer, controls, group, markers: new Map(), opts, animId: null, downX: 0, downY: 0, moved: false };
+    const ctx3 = { THREE, scene, camera, renderer, controls, group, markers: new Map(), fx: [], opts, animId: null, downX: 0, downY: 0, moved: false };
     renderer.domElement.addEventListener('pointerdown', e => { ctx3.downX = e.clientX; ctx3.downY = e.clientY; ctx3.moved = false; });
     renderer.domElement.addEventListener('pointermove', e => { if (Math.hypot(e.clientX - ctx3.downX, e.clientY - ctx3.downY) > 6) ctx3.moved = true; });
     renderer.domElement.addEventListener('pointerup', e => { if (!ctx3.moved) onGlobePick(e); });
@@ -87,23 +90,38 @@ export function buildGlobeMarkers() {
   const opts = renderOptions();
   c.opts = opts;
   c.group.clear();
-  c.group.add(new c.THREE.Mesh(
-    new c.THREE.SphereGeometry(opts.radius, 48, 32),
-    new c.THREE.MeshBasicMaterial({ color: opts.ocean, transparent: true, opacity: 0.85 })
-  ));
-  c.group.add(new c.THREE.Mesh(
-    new c.THREE.SphereGeometry(opts.radius * 1.001, 24, 16),
-    new c.THREE.MeshBasicMaterial({ color: 0x1a2c4a, wireframe: true, transparent: true, opacity: 0.25 })
-  ));
+  if (opts.texture) {
+    let tex = c.earthTex;
+    if (!tex) {
+      tex = new c.THREE.TextureLoader().load(opts.texture);
+      tex.colorSpace = c.THREE.SRGBColorSpace;
+      c.earthTex = tex;
+    }
+    c.group.add(new c.THREE.Mesh(
+      new c.THREE.SphereGeometry(opts.radius, 48, 32),
+      new c.THREE.MeshBasicMaterial({ map: tex, color: 0xffffff })
+    ));
+  } else {
+    c.group.add(new c.THREE.Mesh(
+      new c.THREE.SphereGeometry(opts.radius, 48, 32),
+      new c.THREE.MeshBasicMaterial({ color: opts.ocean, transparent: true, opacity: 0.85 })
+    ));
+    c.group.add(new c.THREE.Mesh(
+      new c.THREE.SphereGeometry(opts.radius * 1.001, 24, 16),
+      new c.THREE.MeshBasicMaterial({ color: 0x1a2c4a, wireframe: true, transparent: true, opacity: 0.25 })
+    ));
+  }
   const ts = Object.values(ST.state.territories);
   if (c.markers.size !== ts.length || c.markers.size === 0) {
     c.markers = new Map();
-    const geo = new c.THREE.SphereGeometry(opts.radius * 0.055 * opts.markerScale, 10, 8);
+    const geo = new c.THREE.SphereGeometry(opts.radius * opts.markerSize * opts.markerScale, 10, 8);
     for (const t of ts) {
-      const m = new c.THREE.Mesh(geo, new c.THREE.MeshBasicMaterial({ color: 0x555555 }));
-      m.scale.setScalar(t.cap ? 2.0 : 1.0);
-      m.position.copy(ll2xyz(t.lon, t.lat, opts.radius * 1.02, c.THREE));
+      const m = new c.THREE.Mesh(geo, new c.THREE.MeshBasicMaterial({
+        color: 0x555555, transparent: true, opacity: opts.markerOpacity, depthWrite: false
+      }));
       m.userData.tid = t.id;
+      m.userData.base = t.cap ? 2.0 : 1.0;
+      m.position.copy(ll2xyz(t.lon, t.lat, opts.radius * 1.02, c.THREE));
       c.markers.set(t.id, m);
     }
   }
@@ -192,6 +210,71 @@ function onGlobeResize() {
   c.renderer.setSize(w, h);
 }
 
+export function playBattleFx(fromTid, toTid, won) {
+  const c = ST.threeCtx;
+  if (!c || !ST.view3d || !ST.state || !ST.state.territories) return;
+  const t = ST.state.territories[toTid];
+  const origin = (t && t.lon != null) ? t : ST.state.territories[fromTid];
+  if (!origin || origin.lon == null) return;
+  const pos = ll2xyz(origin.lon, origin.lat, c.opts.radius * 1.05, c.THREE);
+  const color = won ? 0xffd34a : 0xff5040;
+  const ring = new c.THREE.Mesh(
+    new c.THREE.RingGeometry(0.015, 0.03, 28),
+    new c.THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, side: c.THREE.DoubleSide, depthWrite: false })
+  );
+  ring.position.copy(pos);
+  ring.lookAt(pos.clone().multiplyScalar(2));
+  const N = 30;
+  const dirs = new Float32Array(N * 3), speeds = new Float32Array(N);
+  const base = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const a = Math.random() * Math.PI * 2, b = Math.acos(2 * Math.random() - 1);
+    dirs[i * 3] = Math.sin(b) * Math.cos(a);
+    dirs[i * 3 + 1] = Math.cos(b);
+    dirs[i * 3 + 2] = Math.sin(b) * Math.sin(a);
+    speeds[i] = 0.03 + Math.random() * 0.08;
+    base[i * 3] = pos.x; base[i * 3 + 1] = pos.y; base[i * 3 + 2] = pos.z;
+  }
+  const pgeo = new c.THREE.BufferGeometry();
+  pgeo.setAttribute('position', new c.THREE.BufferAttribute(base.slice(), 3));
+  const pts = new c.THREE.Points(pgeo, new c.THREE.PointsMaterial({
+    color, size: 0.055, transparent: true, opacity: 1, depthWrite: false
+  }));
+  c.scene.add(ring); c.scene.add(pts);
+  c.fx.push({ ring, pts, dirs, speeds, base, age: 0, dur: 1.15 });
+  if (!c.animId) startGlobeLoop();
+}
+
+function tickMarkers(c, t) {
+  for (const [tid, m] of c.markers) {
+    m.scale.setScalar(m.userData.base * (1 + 0.3 * Math.sin(t * 2.4 + tid * 0.7)));
+  }
+}
+
+function tickFx(c, dt) {
+  for (let i = c.fx.length - 1; i >= 0; i--) {
+    const f = c.fx[i];
+    f.age += dt;
+    const k = Math.min(1, f.age / f.dur);
+    f.ring.scale.setScalar(1 + k * 4.5);
+    f.ring.material.opacity = Math.max(0, 1 - k);
+    const arr = f.pts.geometry.attributes.position.array;
+    for (let j = 0; j < arr.length; j += 3) {
+      arr[j] = f.base[j] + f.dirs[j] * f.speeds[j / 3] * k * 1.6;
+      arr[j + 1] = f.base[j + 1] + f.dirs[j + 1] * f.speeds[j / 3] * k * 1.6;
+      arr[j + 2] = f.base[j + 2] + f.dirs[j + 2] * f.speeds[j / 3] * k * 1.6;
+    }
+    f.pts.geometry.attributes.position.needsUpdate = true;
+    f.pts.material.opacity = Math.max(0, 1 - k);
+    if (f.age >= f.dur) {
+      c.scene.remove(f.ring); c.scene.remove(f.pts);
+      f.ring.geometry.dispose(); f.ring.material.dispose();
+      f.pts.geometry.dispose(); f.pts.material.dispose();
+      c.fx.splice(i, 1);
+    }
+  }
+}
+
 function startGlobeLoop() {
   const c = ST.threeCtx;
   if (!c || c.animId) return;
@@ -200,6 +283,8 @@ function startGlobeLoop() {
     if (ST.threeCtx.opts.autorotate && !ST.threeCtx.controls.dragging) {
       ST.threeCtx.group.rotation.y += ST.threeCtx.opts.speed * 0.001;
     }
+    if (ST.threeCtx.fx.length) tickFx(ST.threeCtx, 1 / 60);
+    tickMarkers(ST.threeCtx, performance.now() / 1000);
     ST.threeCtx.controls.update();
     ST.threeCtx.renderer.render(ST.threeCtx.scene, ST.threeCtx.camera);
     ST.threeCtx.animId = requestAnimationFrame(loop);

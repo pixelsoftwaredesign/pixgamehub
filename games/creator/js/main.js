@@ -4,7 +4,7 @@
 
 import { $, fmt, GID, ST, empInfo, ownerColor, empireOf, terrainProfile, unitsOf, tDef } from './modules/state.js?v=2';
 import { bpRun } from './modules/blueprint.js?v=2';
-import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D } from './modules/motion.js?v=4';
+import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx } from './modules/motion.js?v=6';
 import { t as tr, tErr, tBot, applyLang, setLang } from './modules/i18n.js?v=4';
 
 /* ─── Chargement initial : on récupère la config (empires) pour l'écran de login ─── */
@@ -96,6 +96,7 @@ function onMsg(m) {
     toast(tErr(m.error), 'error');
   } else if (m.action === 'battle') {
     const b = m.battle;
+    playBattleFx(b.fromTid, b.toTid, b.attackerWins);
     banner(b.attackerWins ? '⚔️ ' + b.territory + ' ' + tr('battle.conquered') : '🛡️ ' + tr('battle.defended') + ' ' + b.territory, b.attackerWins ? 'victory' : 'defeat');
     toast(tr('battle.result', { result: b.attackerWins ? tr('battle.won') : tr('battle.lost'), losses: fmt(b.attackerWins ? b.atkLosses : b.defLosses) }), b.attackerWins ? 'win' : 'lose');
     bpRun('onBattle', { ...b, won: (b.attackerWins ? b.attacker === ST.myEmpire : b.attacker !== ST.myEmpire) });

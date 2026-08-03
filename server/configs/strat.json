@@ -1704,7 +1704,10 @@
       "autorotate": true,
       "speed": 0.12,
       "ocean": "#0b3d66",
-      "markerScale": 0.9
+      "markerScale": 0.9,
+      "markerSize": 0.00275,
+      "markerOpacity": 0.6,
+      "texture": "/games/creator/img/earth.jpg"
     }
   }
 }
