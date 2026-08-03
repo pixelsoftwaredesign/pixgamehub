@@ -51,6 +51,24 @@ def _get_room(gid):
 
 game = _get_room('strat')
 
+_server_started = time.time()
+
+# ─── Succès (achievements) par jeu ─────────────────────────────────
+ACHIEVEMENTS = {
+    'strat': [
+        {'id': 'first_play', 'name': 'Première partie', 'icon': '🎮', 'desc': 'Lance Strat pour la première fois.'},
+        {'id': 'first_capital', 'name': 'Première capitale', 'icon': '👑', 'desc': 'Conquiers ta première capitale ennemie.'},
+        {'id': 'first_win', 'name': 'Première victoire', 'icon': '🏆', 'desc': 'Gagne ta première partie de Strat.'},
+        {'id': 'expansionist', 'name': 'Expansionniste', 'icon': '🗺️', 'desc': 'Contrôle 20 territoires en une partie.'},
+        {'id': 'grand_alliance', 'name': 'Grande alliance', 'icon': '🤝', 'desc': 'Fais alliance avec un autre empire.'},
+    ],
+    'carthage': [
+        {'id': 'first_play', 'name': 'Première partie', 'icon': '🎮', 'desc': 'Lance l’Empire de Carthage pour la première fois.'},
+        {'id': 'med_hegemon', 'name': 'Hégémonie', 'icon': '🏛️', 'desc': 'Contrôle toute la Méditerranée.'},
+        {'id': 'mighty_punic', 'name': 'Puissance punique', 'icon': '🛡️', 'desc': 'Construis une armée de 1000 unités.'},
+    ],
+}
+
 # ─── Auth DB ───────────────────────────────────────────────────────
 DB_PATH = ROOT / 'server' / 'strat.db'
 def init_db():
@@ -60,6 +78,15 @@ def init_db():
     conn.execute('''CREATE TABLE IF NOT EXISTS api_keys (
         key_private TEXT PRIMARY KEY, key_public TEXT UNIQUE,
         game TEXT, name TEXT, created REAL)''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY, user TEXT, created REAL)''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS library (
+        user TEXT, game TEXT, created REAL, PRIMARY KEY (user, game))''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS leaderboard (
+        game TEXT, username TEXT, score REAL, wins INTEGER DEFAULT 1, updated REAL,
+        PRIMARY KEY (game, username))''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS achievements (
+        user TEXT, game TEXT, ach TEXT, unlocked REAL, PRIMARY KEY (user, game, ach))''')
     conn.commit(); conn.close()
 
 # ─── API keys (clé privée = écriture, clé publique = partage/lecture) ──
@@ -109,6 +136,124 @@ def login(user, pwd):
     r = c.fetchone()
     conn.close()
     return r and r[0] == hashlib.sha256(pwd.encode()).hexdigest()
+
+# ─── Sessions, bibliothèque, classements, succès ────────────────────
+def create_session(user):
+    tok = secrets.token_hex(16)
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.execute('INSERT OR REPLACE INTO sessions VALUES (?,?,?)', (tok, user, time.time()))
+    conn.commit(); conn.close()
+    return tok
+
+def user_from_token(token):
+    if not token:
+        return None
+    conn = sqlite3.connect(str(DB_PATH))
+    c = conn.execute('SELECT user FROM sessions WHERE token=?', (token,))
+    r = c.fetchone()
+    conn.close()
+    return r[0] if r else None
+
+def logout_token(token):
+    if not token:
+        return
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.execute('DELETE FROM sessions WHERE token=?', (token,))
+    conn.commit(); conn.close()
+
+def library_list(user):
+    conn = sqlite3.connect(str(DB_PATH))
+    rows = conn.execute('SELECT game, created FROM library WHERE user=? ORDER BY created DESC', (user,)).fetchall()
+    conn.close()
+    return [{'game': g, 'added': c} for g, c in rows]
+
+def library_toggle(user, game):
+    conn = sqlite3.connect(str(DB_PATH))
+    c = conn.execute('SELECT 1 FROM library WHERE user=? AND game=?', (user, game))
+    has = c.fetchone() is not None
+    if has:
+        conn.execute('DELETE FROM library WHERE user=? AND game=?', (user, game))
+    else:
+        conn.execute('INSERT INTO library VALUES (?,?,?)', (user, game, time.time()))
+    conn.commit(); conn.close()
+    return not has
+
+def leaderboard_top(gid, limit=10):
+    conn = sqlite3.connect(str(DB_PATH))
+    rows = conn.execute('SELECT username, score, wins, updated FROM leaderboard WHERE game=? ORDER BY score DESC LIMIT ?',
+                        (gid, limit)).fetchall()
+    conn.close()
+    return [{'username': r[0], 'score': r[1], 'wins': r[2], 'updated': r[3]} for r in rows]
+
+def leaderboard_submit(gid, username, score):
+    conn = sqlite3.connect(str(DB_PATH))
+    prev = conn.execute('SELECT score, wins FROM leaderboard WHERE game=? AND username=?', (gid, username)).fetchone()
+    if prev and score <= prev[0]:
+        conn.execute('UPDATE leaderboard SET wins=wins+1, updated=? WHERE game=? AND username=?', (time.time(), gid, username))
+    else:
+        wins = (prev[1] + 1) if prev else 1
+        conn.execute('INSERT OR REPLACE INTO leaderboard VALUES (?,?,?,?,?)',
+                     (gid, username, score, wins, time.time()))
+    conn.commit(); conn.close()
+    return leaderboard_top(gid)
+
+def achievements_grant(user, game, ach):
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.execute('INSERT OR IGNORE INTO achievements VALUES (?,?,?,?)', (user, game, ach, time.time()))
+    conn.commit(); conn.close()
+    return True
+
+def achievements_for(user, game):
+    conn = sqlite3.connect(str(DB_PATH))
+    rows = conn.execute('SELECT ach FROM achievements WHERE user=? AND game=?', (user, game)).fetchall()
+    conn.close()
+    return [r[0] for r in rows]
+
+# ─── Catalogue des jeux (Store / Bibliothèque) ─────────────────────
+GAME_METADATA = {
+    'platform':        {'id':'platform','name':'Désert Aventure','genre':'Plateforme','icon':'🏃','url':'games/platform/index.html','desc':"Le Petit Explorateur affronte scorpions et serpents dans le désert. 3 niveaux, power-ups, boss !",'tags':['2D','Solo','3 Niveaux']},
+    'fight':           {'id':'fight','name':'Kung Fu Arena','genre':'Combat','icon':'🥊','url':'games/fight/index.html','desc':'Combat de rue multi-joueur ! 4 combattants, effets visuels, combos et rounds.','tags':['2 Joueurs','Arts Martiaux','VS']},
+    'battle':          {'id':'battle','name':'Fort2D','genre':'Battle Royale','icon':'🔫','url':'games/battle/index.html','desc':'50 joueurs, construction, armes, zone qui rétrécit. Dernier en vie gagne !','tags':['50 Joueurs','Construction','Armes']},
+    'anime':           {'id':'anime','name':'Naruto vs Zoro','genre':'Anime Battle','icon':'⚡','url':'games/anime/index.html','desc':'Lobby + combat anime ! Rasengan, Santoryu, effets spéciaux. 6 cartes aléatoires !','tags':['Lobby','2 Joueurs','6 Maps']},
+    'pixel':           {'id':'pixel','name':'Pixel Arena','genre':'Arène','icon':'⚔️','url':'games/pixel/index.html','desc':'Combat pixel multi-joueur ! 6 personnages, 3 modes, 5 maps.','tags':['Multi-Joueur','Pixel Art','6 Persos']},
+    'jungle':          {'id':'jungle','name':'Jungle Desert Scorpion','genre':'Aventure','icon':'🦂','url':'games/jungle/index.html','desc':'4 héros, Scorpion Forge, vagues de scorpions. Solo, Coop ou Horde !','tags':['4 Archétypes','Avatar','Vagues']},
+    'manga':           {'id':'manga','name':'Manga Fighting Arena','genre':'Manga Battle','icon':'⚔️','url':'games/manga/index.html','desc':'6 combattants anime, effets manga, speed lines, criticals.','tags':['Manga','2 Joueurs','6 Persos']},
+    'arabparkour':     {'id':'arabparkour','name':'Le Voleur de Bagdad','genre':'Parkour','icon':'🏃','url':'games/arabparkour/index.html','desc':'Saute de toit en toit dans la cité impériale ! Sauts périlleux, courses murales.','tags':['Parkour','Solo','5 Artéfacts']},
+    'shadows':         {'id':'shadows','name':'Shadows in the City','genre':'Déduction','icon':'🕵️','url':'games/shadows/index.html','desc':'Assassin, Police ou Citoyen ? Élimine, protège ou survie dans la cité nocturne.','tags':['3 Rôles','Armes','Stealth']},
+    'carthage':        {'id':'carthage','name':'Empire de Carthage','genre':'Stratégie','icon':'🏛️','url':'games/carthage/index.html','desc':"Conquiers la Méditerranée ! Gère ressources, armée et provinces. Alphabet carthaginois inclus.",'tags':['Stratégie','Empire','16 Provinces']},
+    'carthage_platformer': {'id':'carthage_platformer','name':'Le Voleur de Carthage','genre':'Platformer','icon':'🏃','url':'games/carthage_platformer/index.html','desc':"Zayd parcourt les toits de l'ancienne Carthage ! Artéfacts, port Cothon et Byrsa.",'tags':['Parallaxe','Zayd','Toits']},
+    'engine':          {'id':'engine','name':'Moteur 2D Intégral','genre':'Moteur','icon':'⚙️','url':'engine/index.html','desc':'Génération procédurale, parallax multi-calques, éclairage dynamique, particules.','tags':['5 Thèmes','Ghibli/Manga','Zellige']},
+    'studio':          {'id':'studio','name':'Studio de jeux','genre':'Créateur','icon':'🎛️','url':'games/studio/index.html','desc':'Crée ton propre jeu de stratégie sans coder : unités, contres, terrains, économie, combat.','tags':['Visuel','Config JSON','Jouable']},
+}
+
+def _config_meta(cfg):
+    return {'id': cfg.get('id'), 'name': cfg.get('name', cfg.get('id')),
+            'genre': cfg.get('genre', 'Stratégie'), 'icon': cfg.get('icon', '🌍'),
+            'url': f"games/creator/?gid={cfg.get('id')}",
+            'desc': cfg.get('desc', 'Jeu de stratégie créé dans le Studio : empires, batailles, économie, alliances.'),
+            'tags': cfg.get('tags', ['Stratégie', 'Bots IA', 'Multijoueur']),
+            'studio': True}
+
+def catalog():
+    games = []
+    for m in GAME_METADATA.values():
+        games.append(dict(m, studio=False))
+    CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
+    for p in sorted(CONFIGS_DIR.glob('*.json')):
+        try:
+            cfg = json.loads(p.read_text(encoding='utf-8'))
+        except Exception:
+            continue
+        if cfg.get('id') and cfg['id'] not in {g['id'] for g in games}:
+            games.append(_config_meta(cfg))
+    # Strat (config) remplace l'entrée legacy éventuelle
+    return games
+
+def catalog_by_id(gid):
+    for g in catalog():
+        if g['id'] == gid:
+            return g
+    return None
 
 # ─── HTTP handler ──────────────────────────────────────────────────
 MIME_TYPES = {'.js':'application/javascript', '.mjs':'application/javascript', '.css':'text/css', '.json':'application/json',
@@ -446,7 +591,7 @@ async def _handle_unified(reader, writer):
             elif clean == '/api/login':
                 try:
                     if login(data.get('username', ''), data.get('password', '')):
-                        tok = secrets.token_hex(16)
+                        tok = create_session(data.get('username', ''))
                         await _http_respond(writer, 200, 'application/json', json.dumps(
                             {'ok': True, 'token': tok, 'username': data.get('username', '')}).encode())
                     else:
@@ -455,6 +600,53 @@ async def _handle_unified(reader, writer):
                 except Exception:
                     await _http_respond(writer, 400, 'application/json', json.dumps(
                         {'ok': False, 'error': 'Requete invalide'}).encode())
+            elif clean == '/api/me':
+                tok = data.get('token') or headers.get('authorization', '').replace('Bearer ', '')
+                u = user_from_token(tok)
+                await _http_respond(writer, 200, 'application/json', json.dumps(
+                    {'ok': bool(u), 'username': u}).encode())
+            elif clean == '/api/logout':
+                tok = data.get('token') or headers.get('authorization', '').replace('Bearer ', '')
+                logout_token(tok)
+                await _http_respond(writer, 200, 'application/json', json.dumps({'ok': True}).encode())
+            elif clean == '/api/library/toggle':
+                tok = data.get('token') or headers.get('authorization', '').replace('Bearer ', '')
+                u = user_from_token(tok)
+                gid = str(data.get('game', ''))[:40]
+                if not u or not _gid_ok(gid) or not catalog_by_id(gid):
+                    await _http_respond(writer, 200, 'application/json',
+                                        json.dumps({'ok': False, 'error': 'Compte requis ou jeu inconnu'}).encode())
+                else:
+                    added = library_toggle(u, gid)
+                    await _http_respond(writer, 200, 'application/json',
+                                        json.dumps({'ok': True, 'added': added, 'game': gid}).encode())
+            elif clean == '/api/leaderboard/score':
+                tok = data.get('token') or headers.get('authorization', '').replace('Bearer ', '')
+                u = user_from_token(tok)
+                gid = str(data.get('game', ''))[:40]
+                try:
+                    score = float(data.get('score', 0))
+                except Exception:
+                    score = 0
+                if not u or not _gid_ok(gid):
+                    await _http_respond(writer, 200, 'application/json',
+                                        json.dumps({'ok': False, 'error': 'Compte requis'}).encode())
+                else:
+                    await _http_respond(writer, 200, 'application/json',
+                                        json.dumps({'ok': True, 'leaderboard': leaderboard_submit(gid, u, score)},
+                                                   ensure_ascii=False).encode())
+            elif clean == '/api/achievements/unlock':
+                tok = data.get('token') or headers.get('authorization', '').replace('Bearer ', '')
+                u = user_from_token(tok)
+                gid = str(data.get('game', ''))[:40]
+                ach = str(data.get('ach', ''))[:40]
+                if not u or not _gid_ok(gid):
+                    await _http_respond(writer, 200, 'application/json',
+                                        json.dumps({'ok': False, 'error': 'Compte requis'}).encode())
+                else:
+                    achievements_grant(u, gid, ach)
+                    await _http_respond(writer, 200, 'application/json',
+                                        json.dumps({'ok': True, 'unlocked': achievements_for(u, gid)}).encode())
             else:
                 await _http_respond(writer, 404, 'application/json', b'{"error":"not found"}')
             return
@@ -471,6 +663,50 @@ async def _handle_unified(reader, writer):
             gid = clean.split('/')[-1]
             st, ct, raw = _studio_api('GET', gid, None)
             await _http_respond(writer, st, ct, raw)
+            return
+
+        from urllib.parse import parse_qs
+        qs = parse_qs(urlparse(path).query)
+        auth_tok = (qs.get('token') or [None])[0] or headers.get('authorization', '').replace('Bearer ', '')
+        if clean == '/api/status':
+            rooms = {gid: g for gid, g in GAME_ROOMS.items()}
+            games = []
+            for gid, g in sorted(rooms.items()):
+                if not _gid_ok(gid):
+                    continue
+                hum = [p for p in g.players.values() if not p.get('ai')]
+                games.append({'id': gid, 'players': len(hum), 'phase': g.phase,
+                              'name': g._cfg.get('name', gid), 'icon': g._cfg.get('icon', '🌍')})
+            n_online = sum(g['players'] for g in games)
+            await _http_respond(writer, 200, 'application/json', json.dumps({
+                'games': len(GAME_METADATA) + sum(1 for _ in CONFIGS_DIR.glob('*.json') if _gid_ok(_.stem)),
+                'online': n_online, 'rooms': [g for g in games if g['players'] > 0],
+                'uptime': time.time() - _server_started}).encode())
+            return
+        if clean == '/api/catalog':
+            await _http_respond(writer, 200, 'application/json',
+                                json.dumps({'games': catalog()}, ensure_ascii=False).encode())
+            return
+        if clean == '/api/library':
+            u = user_from_token(auth_tok)
+            await _http_respond(writer, 200, 'application/json',
+                                json.dumps({'ok': bool(u), 'user': u,
+                                            'library': library_list(u) if u else []}).encode())
+            return
+        if clean.startswith('/api/leaderboard/'):
+            gid = clean.split('/')[-1]
+            await _http_respond(writer, 200, 'application/json',
+                                json.dumps({'game': gid,
+                                            'leaderboard': leaderboard_top(gid)}).encode())
+            return
+        if clean.startswith('/api/achievements/'):
+            gid = clean.split('/')[-1]
+            u = user_from_token(auth_tok)
+            defs = ACHIEVEMENTS.get(gid, [])
+            unlocked = achievements_for(u, gid) if u else []
+            await _http_respond(writer, 200, 'application/json',
+                                json.dumps({'game': gid, 'definitions': defs,
+                                            'unlocked': unlocked}).encode())
             return
 
         status, ctype, body_bytes = _static_response(path)
@@ -574,6 +810,22 @@ _pid_counter = 0
 _last_pid = {}
 _pid_room = {}   # pid -> gid (salle du moteur)
 
+# ─── Social hub (chat, présence, salles) ───────────────────────────
+CHAT_HISTORY = 50
+_chat_rooms = {}       # room -> [ {sender, content, ts} ]
+_room_members = {}     # room -> set(conn)
+_conn_user = {}        # conn -> username (auth)
+_conn_game = {}        # conn -> gid courant (présence)
+_conn_display = {}     # conn -> pseudo affiché
+
+def _chat_broadcast(room, payload):
+    payload['action'] = 'receive_chat_message'
+    for c in list(_room_members.get(room, set())):
+        try:
+            asyncio.get_event_loop().create_task(c.send(json.dumps(payload)))
+        except Exception:
+            pass
+
 async def ws_handler(conn):
     global _pid_counter
     pid = None
@@ -582,7 +834,49 @@ async def ws_handler(conn):
         async for msg in conn:
             data = json.loads(msg)
             action = data.get('action')
-            if action == 'join':
+            if action == 'auth':
+                u = user_from_token(data.get('token'))
+                if u:
+                    _conn_user[conn] = u
+                    _conn_display[conn] = u
+                    await conn.send(json.dumps({'action': 'auth_ok', 'username': u}))
+            elif action == 'join_chat_room':
+                room = str(data.get('room') or 'global_hub')[:40]
+                _room_members.setdefault(room, set()).add(conn)
+                await conn.send(json.dumps({'action': 'chat_history', 'room': room,
+                                            'messages': _chat_rooms.get(room, [])}))
+            elif action == 'send_chat_message':
+                room = str(data.get('room') or 'global_hub')[:40]
+                content = str(data.get('content') or '').strip()[:300]
+                sender = _conn_display.get(conn) or 'Anonyme'
+                if content:
+                    entry = {'sender': sender, 'content': content, 'ts': time.time()}
+                    _chat_rooms.setdefault(room, []).append(entry)
+                    if len(_chat_rooms[room]) > CHAT_HISTORY:
+                        _chat_rooms[room] = _chat_rooms[room][-CHAT_HISTORY:]
+                    _room_members.setdefault(room, set()).add(conn)
+                    _chat_broadcast(room, dict(entry, room=room))
+            elif action == 'presence':
+                _conn_game[conn] = str(data.get('game') or '')[:40]
+            elif action == 'get_rooms':
+                rooms = []
+                for rgid, g in GAME_ROOMS.items():
+                    if not _gid_ok(rgid):
+                        continue
+                    hum = [p for p in g.players.values() if not p.get('ai')]
+                    if hum or g.phase != 'waiting':
+                        rooms.append({'id': rgid, 'name': g._cfg.get('name', rgid),
+                                      'players': len(hum), 'phase': g.phase})
+                online = {}
+                for cgid in _conn_game.values():
+                    if cgid:
+                        online[cgid] = online.get(cgid, 0) + 1
+                for g in catalog():
+                    if g['id'] not in online:
+                        online[g['id']] = 0
+                await conn.send(json.dumps({'action': 'rooms_list', 'rooms': rooms,
+                                            'online': online}))
+            elif action == 'join':
                 name = data.get('name', 'Anonyme')
                 gid = data.get('game') or 'strat'
                 g = _get_room(gid)
@@ -638,6 +932,11 @@ async def ws_handler(conn):
     except:
         import traceback; traceback.print_exc()
     finally:
+        _conn_user.pop(conn, None)
+        _conn_game.pop(conn, None)
+        _conn_display.pop(conn, None)
+        for room in list(_room_members.keys()):
+            _room_members[room].discard(conn)
         g = _get_room(_pid_room.get(pid, gid))
         if pid and pid in g.players and g.players[pid].get('conn') is conn:
             empire = g.players[pid].get('empire')

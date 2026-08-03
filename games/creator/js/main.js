@@ -110,7 +110,34 @@ function onMsg(m) {
     toast(`🤖 ${m.bot.icon || ''} ${m.bot.empire} : ${tBot(m.bot.msg)}`, 'info');
   } else if (m.action === 'game_over') {
     toast(m.winner ? tr('gameOver.win', { winner: m.winner }) : tr('gameOver.over'), 'win');
+    if (m.winner && m.winner === ST.myPid) submitScore();
   }
+}
+
+/* ─── Classement & succès (PixGameHub) ─── */
+function submitScore() {
+  const token = localStorage.getItem('pix_token');
+  if (!token) return;
+  try {
+    const state = ST.state || {};
+    const myEmpire = ST.myEmpire;
+    const terr = Object.values(state.territories || {}).filter(t => t.owner === myEmpire).length;
+    const p = (state.players && state.players[ST.myPid]) || {};
+    const score = Math.round(terr * 100 + (p.gold || 0) / 5 + (p.food || 0) / 5 + (p.wood || 0) + (p.stone || 0));
+    const gid = new URLSearchParams(location.search).get('gid') || 'strat';
+    fetch('/api/leaderboard/score', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ token, game: gid, score })
+    }).then(r => r.json()).then(res => {
+      if (res.ok) toast(`🏆 Score ${score} enregistré au classement !`, 'win');
+    }).catch(() => {});
+    const unlocks = ['first_win'];
+    if (terr >= 20) unlocks.push('expansionist');
+    unlocks.forEach(ach => fetch('/api/achievements/unlock', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ token, game: gid, ach })
+    }).catch(() => {}));
+  } catch (e) {}
 }
 
 function send(cmd, data) {

@@ -1070,50 +1070,70 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < 12; i++) ctx.fillRect((i * 37 + 15) % 480, (i * 23 + 8) % 60, 1.2, 1.2);
     }
 
-    function animate() {
-        frame++;
-        const canvases = document.querySelectorAll('.preview-canvas');
-        canvases.forEach(c => {
-            const game = c.dataset.game;
-            if (game === 'platform') drawPlatformPreview(c);
-            else if (game === 'fight') drawFightPreview(c);
-            else if (game === 'battle') drawBattlePreview(c);
-            else if (game === 'anime') drawAnimePreview(c);
-            else if (game === 'pixel') drawPixelPreview(c);
-            else if (game === 'jungle') drawJunglePreview(c);
-            else if (game === 'manga') drawMangaPreview(c);
-            else if (game === 'arabparkour') drawArabParkourPreview(c);
-            else if (game === 'shadows') drawShadowsPreview(c);
-            else if (game === 'carthage') drawCarthagePreview(c);
-            else if (game === 'carthage_platformer') drawCarthagePlatformerPreview(c);
-            else if (game === 'engine') drawEnginePreview(c);
-            else if (game === 'strat') drawStratPreview(c);
+    const drawers = {
+        platform: drawPlatformPreview,
+        fight: drawFightPreview,
+        battle: drawBattlePreview,
+        anime: drawAnimePreview,
+        pixel: drawPixelPreview,
+        jungle: drawJunglePreview,
+        manga: drawMangaPreview,
+        arabparkour: drawArabParkourPreview,
+        shadows: drawShadowsPreview,
+        carthage: drawCarthagePreview,
+        carthage_platformer: drawCarthagePlatformerPreview,
+        engine: drawEnginePreview,
+        strat: drawStratPreview
+    };
+
+    function drawGenericPreview(c) {
+        const ctx = c.getContext('2d');
+        const g = ctx.createLinearGradient(0, 0, 0, 200);
+        g.addColorStop(0, '#0a1428'); g.addColorStop(1, '#16203a');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, 480, 200);
+
+        const cx = 240, cy = 100, R = 62;
+        for (let y = 0; y < 2 * R; y += 5) {
+            for (let x = 0; x < 2 * R; x += 5) {
+                const dx = x - R, dy = y - R;
+                if (dx * dx + dy * dy < R * R) {
+                    const depth = Math.sqrt(1 - (dx * dx + dy * dy) / (R * R));
+                    ctx.fillStyle = `rgba(${90 + depth * 60},${150 + depth * 60},${220 + depth * 35},${0.3 + depth * 0.55})`;
+                    ctx.beginPath(); ctx.arc(cx + dx, cy + dy, 1.4, 0, Math.PI * 2); ctx.fill();
+                }
+            }
+        }
+        const spots = [[0.55, 0.35, '#d4a017'], [0.4, 0.5, '#3a9df5'], [0.7, 0.52, '#c84b31'], [0.6, 0.65, '#2ecc71']];
+        spots.forEach(([sx, sy, col]) => {
+            const a = sx * Math.PI * 2, e = (sy - 0.5) * Math.PI;
+            ctx.fillStyle = col;
+            ctx.beginPath();
+            ctx.arc(cx + R * Math.cos(e) * Math.cos(a + frame * 0.008) * 0.9, cy + R * Math.sin(e) * 0.9, 2.2, 0, Math.PI * 2);
+            ctx.fill();
         });
-        requestAnimationFrame(animate);
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        for (let i = 0; i < 12; i++) ctx.fillRect((i * 37 + 15) % 480, (i * 23 + 8) % 60, 1.2, 1.2);
     }
 
-    animate();
-
-    // Floating particles background
-    const bg = document.getElementById('particles-bg');
-    for (let i = 0; i < 30; i++) {
-        const dot = document.createElement('div');
-        dot.style.cssText = `
-            position: absolute;
-            width: ${2 + Math.random() * 3}px;
-            height: ${2 + Math.random() * 3}px;
-            background: rgba(${100 + Math.random() * 155}, ${100 + Math.random() * 155}, ${100 + Math.random() * 155}, 0.15);
-            border-radius: 50%;
-            left: ${Math.random() * 100}%;
-            top: ${Math.random() * 100}%;
-            animation: float ${5 + Math.random() * 10}s ease-in-out infinite;
-            animation-delay: ${Math.random() * 5}s;
-        `;
-        bg.appendChild(dot);
+    const live = new Set();
+    let running = false;
+    function tick() {
+        frame++;
+        live.forEach(c => {
+            const fn = drawers[c.dataset.game];
+            if (fn) fn(c); else drawGenericPreview(c);
+        });
+        if (live.size) requestAnimationFrame(tick);
     }
 
-    // Add float animation
-    const style = document.createElement('style');
-    style.textContent = `@keyframes float { 0%,100%{transform:translateY(0) translateX(0)} 50%{transform:translateY(-30px) translateX(10px)} }`;
-    document.head.appendChild(style);
+    window.PixPreviews = {
+        mount(root) {
+            live.forEach(c => { if (!document.contains(c)) live.delete(c); });
+            (root || document).querySelectorAll('.preview-canvas').forEach(c => {
+                if (!c.dataset.fixed) { c.width = 480; c.height = 180; }
+                live.add(c);
+            });
+            if (!running) { running = true; requestAnimationFrame(tick); }
+        }
+    };
 });
