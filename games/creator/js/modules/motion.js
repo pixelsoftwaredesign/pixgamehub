@@ -316,23 +316,32 @@ function launchProjectile(c, A, B, color, onHit) {
   if (!c.animId) startGlobeLoop();
 }
 
-export function playBattleFx(fromTid, toTid, won) {
+export function playBattleFx(fromTid, toTid, won, projectile = true) {
   const c = ST.threeCtx;
   if (!c || !ST.view3d || !ST.state || !ST.state.territories) return;
   const ta = ST.state.territories[fromTid];
   const tb = ST.state.territories[toTid];
   if (!ta || ta.lon == null || !tb || tb.lon == null) return;
-  const A = fxPos(c, ta), B = fxPos(c, tb);
-  launchProjectile(c, A, B, won ? 0xffd34a : 0xff5040, () => explosion(c, B, won ? 0xffd34a : 0xff5040, 1.4));
+  const color = won ? 0xffd34a : 0xff5040;
+  const B = fxPos(c, tb);
+  if (projectile) {
+    launchProjectile(c, fxPos(c, ta), B, color, () => explosion(c, B, color, 1.4));
+  } else {
+    explosion(c, B, color, 1.4);
+  }
 }
 
-/* Flash de départ lors de l'envoi d'une attaque (retour immédiat). */
-export function launchAttackFx(fromTid) {
+/* Flash de départ lors de l'envoi d'une attaque : projectile vers la cible
+   (retour visuel immédiat) + petite explosion à l'arrivée. */
+export function launchAttackFx(fromTid, toTid) {
   const c = ST.threeCtx;
   if (!c || !ST.view3d || !ST.state || !ST.state.territories) return;
-  const t = ST.state.territories[fromTid];
-  if (!t || t.lon == null) return;
-  explosion(c, fxPos(c, t), 0xffd34a, 0.6);
+  const ta = ST.state.territories[fromTid];
+  const tb = toTid != null ? ST.state.territories[toTid] : null;
+  if (!ta || ta.lon == null) return;
+  if (!tb || tb.lon == null) { explosion(c, fxPos(c, ta), 0xffd34a, 0.6); return; }
+  const A = fxPos(c, ta), B = fxPos(c, tb);
+  launchProjectile(c, A, B, 0xffd34a, () => explosion(c, B, 0xffd34a, 0.8));
 }
 
 function tickMarkers(c, t) {

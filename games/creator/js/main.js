@@ -4,7 +4,7 @@
 
 import { $, fmt, GID, ST, empInfo, ownerColor, empireOf, terrainProfile, unitsOf, tDef } from './modules/state.js?v=2';
 import { bpRun } from './modules/blueprint.js?v=2';
-import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx, launchAttackFx } from './modules/motion.js?v=14';
+import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx, launchAttackFx } from './modules/motion.js?v=15';
 import { t as tr, tErr, tBot, applyLang, setLang, terrName, cityHist, empireHist } from './modules/i18n.js?v=7';
 
 /* ─── Chargement initial : on récupère la config (empires) pour l'écran de login ─── */
@@ -96,7 +96,8 @@ function onMsg(m) {
     toast(tErr(m.error), 'error');
   } else if (m.action === 'battle') {
     const b = m.battle;
-    playBattleFx(b.fromTid, b.toTid, b.attackerWins);
+    const mine = ST.pendingAttacks.delete(String(b.fromTid) + ':' + String(b.toTid));
+    playBattleFx(b.fromTid, b.toTid, b.attackerWins, !mine);
     banner(b.attackerWins ? '⚔️ ' + b.territory + ' ' + tr('battle.conquered') : '🛡️ ' + tr('battle.defended') + ' ' + b.territory, b.attackerWins ? 'victory' : 'defeat');
     toast(tr('battle.result', { result: b.attackerWins ? tr('battle.won') : tr('battle.lost'), losses: fmt(b.attackerWins ? b.atkLosses : b.defLosses) }), b.attackerWins ? 'win' : 'lose');
     bpRun('onBattle', { ...b, won: (b.attackerWins ? b.attacker === ST.myEmpire : b.attacker !== ST.myEmpire) });
@@ -467,7 +468,8 @@ function doAttack() {
     if (v > 0) units[uid] = v;
   }
   if (!Object.keys(units).length) { toast(tr('terr.noUnitsSent'), 'error'); return; }
-  launchAttackFx(ST.selected);
+  ST.pendingAttacks.add(ST.selected + ':' + ST.pendingAttack.to);
+  launchAttackFx(ST.selected, ST.pendingAttack.to);
   send('attack', { to: ST.pendingAttack.to, units });
 }
 

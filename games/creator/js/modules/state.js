@@ -13,6 +13,7 @@ export const ST = {
   myEmpire: null,
   selected: null,         // territoire sélectionné
   pendingAttack: null,    // {to: tid}
+  pendingAttacks: new Set(),  // "from:to" des attaques lancées par le joueur
   pickMode: null,         // 'attack' | 'move' | 'convert' | null
   connected: false,
   blueprintCfg: null,     // config.blueprint (moteur de règles bonus)
