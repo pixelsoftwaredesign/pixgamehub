@@ -178,8 +178,8 @@ class StratGame:
         info = EMPIRE_DATA.get(eid)
         if not info or not pids:
             return
-        # Soldats de départ: 100 × nb joueurs + 20% (plus de joueurs = plus de soldats)
-        base_army = int(100 * max(1, len(self.players)) * 1.2)
+        # Soldats de départ: 100 × nb joueurs du même empire + 20% (plus de coéquipiers = plus de soldats)
+        base_army = int(100 * max(1, len(pids)) * 1.2)
         cap_tid = info['capital']
         cap_t = self.territories[cap_tid]
         cap_t['owner'] = pids[0]
