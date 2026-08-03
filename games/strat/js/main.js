@@ -21,14 +21,20 @@ function atkTypeMult(utype, toT) {
   const defU = unitsOf(toT)
   let total = 0
   for (const d of UNIT_ORDER) total += defU[d] * UNIT_STATS[d].d
+  const prof = terrainProfile(toT)
   let mult = 1
   if (total > 0) {
     for (const d of UNIT_ORDER) {
-      if (defU[d] > 0) mult += (COUNTER[utype][d] - 1) * ((defU[d] * UNIT_STATS[d].d) / total)
+      if (defU[d] > 0) {
+        let w = (defU[d] * UNIT_STATS[d].d) / total
+        if (utype === 'cavalry' && d === 'soldier') w *= prof.plain_ratio
+        mult += (COUNTER[utype][d] - 1) * w
+      }
     }
   }
   const fort = toT.fort || 0
-  if (utype === 'elephant') mult += 0.25 * fort
+  const fort_hill = toT.fort_hill || 0
+  if (utype === 'elephant') mult += 0.25 * (fort + fort_hill)
   else mult *= Math.max(0.3, 1 - 0.1 * fort)
   return mult
 }
@@ -48,6 +54,19 @@ function unitsOf(td) {
   }
 }
 function unitIcon(u) { return (UNIT_STATS[u] || UNIT_STATS.soldier).icon }
+function terrainProfile(td) {
+  if (!td?.grid) return { plain_ratio: 1, hills: 0, forests: 0, beach: true }
+  let hills = 0, forests = 0, plain = 0, beach = 0
+  for (const row of td.grid) for (const cell of row) {
+    const ter = cell && typeof cell === 'object' ? (cell.t || 'plain') : 'plain'
+    if (ter === 'hill') hills++
+    else if (ter === 'forest') forests++
+    else if (ter === 'beach') beach++
+    else if (ter === 'plain') plain++
+  }
+  const land = Math.max(1, hills + forests + plain + beach)
+  return { plain_ratio: (plain + beach) / land, hills, forests, beach: beach > 0 }
+}
 function ownerPower(pid, def) {
   let p = 0
   for (const id in state.territories) {
@@ -396,7 +415,8 @@ function attackPreview(fromId, toId, units) {
     if (pid !== state.you && state.players[pid]?.empire === myEmp) allyPow += ownerPower(pid)
   }
   atkPow += Math.floor(allyPow * 0.2)
-  const defFull = ownerPower(toT.owner, true) * (1 + (toT.fort || 0) * 0.2)
+  const prof = terrainProfile(toT)
+  const defFull = ownerPower(toT.owner, true) * (1 + ((toT.fort || 0) + 0.5 * (toT.fort_hill || 0)) * 0.2) * (1 + (prof.hills + prof.forests) * 0.05)
   const defEmp = state.players[toT.owner]?.empire
   let defAllyPow = 0
   for (const pid in state.players) {
@@ -404,7 +424,10 @@ function attackPreview(fromId, toId, units) {
   }
   const defPow = defFull + Math.floor(defAllyPow * 0.2)
   const chance = atkPow <= 0 ? 0 : Math.max(0, Math.min(1, (atkPow * 1.2 - defPow) / (atkPow * 0.4)))
-  return { atk: Math.round(atkPow), def: Math.round(defPow), chance: Math.round(chance * 100), total }
+  const notes = []
+  if (units.navy > 0 && !prof.beach) notes.push('🚢 pas de plage')
+  if (prof.hills + prof.forests > 0) notes.push(`⛰️${prof.hills}🌲${prof.forests} défense +${Math.round((prof.hills + prof.forests) * 5)}%`)
+  return { atk: Math.round(atkPow), def: Math.round(defPow), chance: Math.round(chance * 100), total, notes }
 }
 
 // ─── Territory action bar (compact, non-blocking) ─────────────────
@@ -559,7 +582,7 @@ function showTerritoryBar(id) {
       const pv = attackPreview(id, toId, units)
       const et = allEnemies.find(e => e.id === toId)
       pvEl.textContent = pv
-        ? `⚔️${pv.atk} vs 🛡️${pv.def} — ${pv.chance}% (${total} envoyés)`
+        ? `⚔️${pv.atk} vs 🛡️${pv.def} — ${pv.chance}% (${total} envoyés)${pv.notes?.length ? ' — ' + pv.notes.join(' · ') : ''}`
         : 'Aucune unité sélectionnée'
       attackBtn.classList.toggle('disabled', !pv || !et || total < 1)
     }
