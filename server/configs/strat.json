@@ -331,6 +331,12 @@
       "capital": 127,
       "color": "#1f618d",
       "icon": "🦙"
+    },
+    "gafsa": {
+      "name": "Gafsa",
+      "capital": 130,
+      "color": "#b06e3f",
+      "icon": "🐪"
     }
   },
   "territories": [
@@ -361,15 +367,17 @@
     },
     {
       "id": 2,
-      "name": "Hadrumète",
-      "lon": 10.8,
-      "lat": 34.2,
+      "name": "Sfax",
+      "lon": 10.76,
+      "lat": 34.74,
       "home": "carthage",
       "adj": [
         0,
         1,
         3,
-        37
+        37,
+        130,
+        131
       ]
     },
     {
@@ -1761,6 +1769,40 @@
       "home": "inca",
       "adj": [
         127
+      ]
+    },
+    {
+      "id": 130,
+      "name": "Gafsa",
+      "lon": 8.78,
+      "lat": 34.42,
+      "cap": true,
+      "home": "gafsa",
+      "adj": [
+        2,
+        131
+      ]
+    },
+    {
+      "id": 131,
+      "name": "Gabès",
+      "lon": 10.1,
+      "lat": 33.88,
+      "home": "carthage",
+      "adj": [
+        2,
+        130,
+        132
+      ]
+    },
+    {
+      "id": 132,
+      "name": "Djerba",
+      "lon": 10.89,
+      "lat": 33.79,
+      "home": "carthage",
+      "adj": [
+        131
       ]
     }
   ],

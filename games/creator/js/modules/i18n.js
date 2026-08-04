@@ -695,7 +695,7 @@ export function applyLang() {
    (fr, en, es) utilisent le nom original de la config. */
 const TERR_NAMES = {
   ar: {
-    '0': 'قرطاج', '1': 'أوتيك', '2': 'حدروميت', '3': 'تافسوس', '4': 'لبدة الكبرى',
+    '0': 'قرطاج', '1': 'أوتيك', '2': 'صفاقس', '3': 'تافسوس', '4': 'لبدة الكبرى',
     '5': 'قورينا', '6': 'روما', '7': 'نابولي', '8': 'كابوا', '9': 'تارانتو',
     '10': 'برينديزي', '11': 'سيراقوسة', '12': 'أكريجنتو', '13': 'مارسيليا', '14': 'ناربون',
     '15': 'طارقونة', '16': 'ساجونتو', '17': 'قرطبة', '18': 'قادس', '19': 'الإسكندرية',
@@ -721,9 +721,10 @@ const TERR_NAMES = {
     '117': 'مدراس', '118': 'تمبكتو', '119': 'غاو', '120': 'جينيه', '121': 'باماكو',
     '122': 'كومبي صالح', '123': 'أغاديس', '124': 'كانو',
     '125': 'نوك', '126': 'ققرتارسوك', '127': 'كوسكو', '128': 'ماتشو بيتشو', '129': 'ليما',
+    '130': 'قفصة', '131': 'قابس', '132': 'جربة',
   },
   ja: {
-    '0': 'カルタゴ', '1': 'ウティカ', '2': 'ハドルメトゥム', '3': 'タプソス', '4': 'レプキス・マグナ',
+    '0': 'カルタゴ', '1': 'ウティカ', '2': 'スファクス', '3': 'タプソス', '4': 'レプキス・マグナ',
     '5': 'キュレネ', '6': 'ローマ', '7': 'ナポリ', '8': 'カプア', '9': 'タレントゥム',
     '10': 'ブリンディジ', '11': 'シラクサ', '12': 'アグリジェント', '13': 'マルセイユ', '14': 'ナルボンヌ',
     '15': 'タラゴナ', '16': 'サグント', '17': 'コルドバ', '18': 'カディス', '19': 'アレクサンドリア',
@@ -749,9 +750,10 @@ const TERR_NAMES = {
     '117': 'チェンナイ', '118': 'トンブクトゥ', '119': 'ガオ', '120': 'ジェンネ', '121': 'バマコ',
     '122': 'クンビ・サレー', '123': 'アガデズ', '124': 'カノ',
     '125': 'ヌーク', '126': 'ケケルタルスアーク', '127': 'クスコ', '128': 'マチュピチュ', '129': 'リマ',
+    '130': 'ガフサ', '131': 'ガベス', '132': 'ジェルバ',
   },
   zh: {
-    '0': '迦太基', '1': '乌提卡', '2': '哈德鲁梅', '3': '塔普苏斯', '4': '大莱普提斯',
+    '0': '迦太基', '1': '乌提卡', '2': '斯法克斯', '3': '塔普苏斯', '4': '大莱普提斯',
     '5': '昔兰尼', '6': '罗马', '7': '那不勒斯', '8': '卡普阿', '9': '塔兰托',
     '10': '布林迪西', '11': '叙拉古', '12': '阿格里真托', '13': '马赛', '14': '纳博讷',
     '15': '塔拉戈纳', '16': '萨贡托', '17': '科尔多瓦', '18': '加的斯', '19': '亚历山大',
@@ -777,6 +779,7 @@ const TERR_NAMES = {
     '117': '金奈', '118': '廷巴克图', '119': '加奥', '120': '杰内', '121': '巴马科',
     '122': '昆比萨利赫', '123': '阿加德兹', '124': '卡诺',
     '125': '努克', '126': '凯凯尔塔苏阿克', '127': '库斯科', '128': '马丘比丘', '129': '利马',
+    '130': '加夫萨', '131': '加贝斯', '132': '杰尔巴',
   },
 };
 
@@ -794,37 +797,37 @@ const EMP_NAMES = {
     carthage: 'Carthage', rome: 'Rome', egypt: 'Égypte', persia: 'Perse', sparta: 'Sparte',
     greece: 'Grèce', saba: 'Saba', maya: 'Maya', assyria: 'Assyrie', boboli: 'Boboli',
     japan: 'Japon', mongol: 'Mongol', russia: 'Russie', china: 'Chine', wako: 'Wako',
-    australia: 'Australie & NZ', india: 'Inde', mali: 'Mali', inuit: 'Inuit', inca: 'Inca',
+    australia: 'Australie & NZ', india: 'Inde', mali: 'Mali', inuit: 'Inuit', inca: 'Inca', gafsa: 'Gafsa',
   },
   en: {
     carthage: 'Carthage', rome: 'Rome', egypt: 'Egypt', persia: 'Persia', sparta: 'Sparta',
     greece: 'Greece', saba: 'Saba', maya: 'Maya', assyria: 'Assyria', boboli: 'Boboli',
     japan: 'Japan', mongol: 'Mongol', russia: 'Russia', china: 'China', wako: 'Wako',
-    australia: 'Australia & NZ', india: 'India', mali: 'Mali', inuit: 'Inuit', inca: 'Inca',
+    australia: 'Australia & NZ', india: 'India', mali: 'Mali', inuit: 'Inuit', inca: 'Inca', gafsa: 'Gafsa',
   },
   ar: {
     carthage: 'قرطاج', rome: 'روما', egypt: 'مصر', persia: 'فارس', sparta: 'إسبرطة',
     greece: 'اليونان', saba: 'سبأ', maya: 'المايا', assyria: 'آشور', boboli: 'بوبولي',
     japan: 'اليابان', mongol: 'المغول', russia: 'روسيا', china: 'الصين', wako: 'واكو',
-    australia: 'أستراليا ونيوزيلندا', india: 'الهند', mali: 'مالي', inuit: 'الإنويت', inca: 'الإنكا',
+    australia: 'أستراليا ونيوزيلندا', india: 'الهند', mali: 'مالي', inuit: 'الإنويت', inca: 'الإنكا', gafsa: 'قفصة',
   },
   es: {
     carthage: 'Cartago', rome: 'Roma', egypt: 'Egipto', persia: 'Persia', sparta: 'Esparta',
     greece: 'Grecia', saba: 'Saba', maya: 'Maya', assyria: 'Asiria', boboli: 'Boboli',
     japan: 'Japón', mongol: 'Mongol', russia: 'Rusia', china: 'China', wako: 'Wako',
-    australia: 'Australia y NZ', india: 'India', mali: 'Malí', inuit: 'Inuit', inca: 'Inca',
+    australia: 'Australia y NZ', india: 'India', mali: 'Malí', inuit: 'Inuit', inca: 'Inca', gafsa: 'Gafsa',
   },
   ja: {
     carthage: 'カルタゴ', rome: 'ローマ', egypt: 'エジプト', persia: 'ペルシア', sparta: 'スパルタ',
     greece: 'ギリシャ', saba: 'サバ', maya: 'マヤ', assyria: 'アッシリア', boboli: 'ボボリ',
     japan: '日本', mongol: 'モンゴル', russia: 'ロシア', china: '中国', wako: '倭寇',
-    australia: 'オーストラリア・NZ', india: 'インド', mali: 'マリ', inuit: 'イヌイット', inca: 'インカ',
+    australia: 'オーストラリア・NZ', india: 'インド', mali: 'マリ', inuit: 'イヌイット', inca: 'インカ', gafsa: 'ガフサ',
   },
   zh: {
     carthage: '迦太基', rome: '罗马', egypt: '埃及', persia: '波斯', sparta: '斯巴达',
     greece: '希腊', saba: '萨巴', maya: '玛雅', assyria: '亚述', boboli: '波波利',
     japan: '日本', mongol: '蒙古', russia: '俄罗斯', china: '中国', wako: '倭寇',
-    australia: '澳大利亚与新西兰', india: '印度', mali: '马里', inuit: '因纽特', inca: '印加',
+    australia: '澳大利亚与新西兰', india: '印度', mali: '马里', inuit: '因纽特', inca: '印加', gafsa: '加夫萨',
   },
 };
 
@@ -839,7 +842,7 @@ export function empireName(eid) {
 const CITY_HIST = {
   '0': 'Fondée vers 814 av. J.-C. par des marins phéniciens de Tyr, elle devient la rivale de Rome.',
   '1': 'Première colonie phénicienne de la côte africaine, berceau des marchands carthaginois.',
-  '2': 'Grand port romain d\'Afrique, où naquit l\'écrivain Apulée.',
+  '2': 'Héritière de l\'antique Taparura, Sfax est devenue le grand port du Sud tunisien, capitale de la pêche et de l\'olivier.',
   '3': 'Lieu de la bataille finale entre César et les pompéiens en 46 av. J.-C.',
   '4': 'Splendide cité romaine de Tripolitaine, restée longtemps enfouie sous le sable.',
   '5': 'Colonie grecque fameuse pour son école de philosophie et la plante silphion.',
@@ -965,6 +968,9 @@ const CITY_HIST = {
   '127': 'Ancienne capitale de l\'Empire inca, centre de l\'univers selon la cosmologie andine.',
   '128': 'Cité inca perchée dans les Andes, redécouverte en 1911 par Hiram Bingham.',
   '129': 'Ville fondée par Francisco Pizarro en 1535, la « ville des rois » du Pérou.',
+  '130': 'L\'antique Capsa, oasis du Sud tunisien aux sources thermales, cité de la culture capsienne et du commerce saharien.',
+  '131': 'L\'antique Tacape, port et oasis du golfe de Gabès, carrefour des caravanes du désert.',
+  '132': 'Île des Lotophages de l\'Odyssée, terre d\'oliviers, de synagogues et de pêche en Méditerranée.',
 };
 
 export function cityHist(id) {
@@ -993,6 +999,7 @@ const EMPIRE_HIST = {
   mali: 'Empire de l\'or et de l\'islam, de Soundiata à Mansa Moussa.',
   inuit: 'Peuples de l\'Arctique et du Groenland, maîtres de l\'iceberg et du traîneau à chiens.',
   inca: 'Empire du Soleil des Andes, de Cusco aux 40 000 km de routes du Qhapaq Ñan.',
+  gafsa: 'Oasis du Sud tunisien, capitale de la culture capsienne et carrefour berbère entre Carthage et le Sahara.',
 };
 
 export function empireHist(eid) {
