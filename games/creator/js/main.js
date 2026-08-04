@@ -5,7 +5,7 @@
 import { $, fmt, GID, ST, empInfo, ownerColor, empireOf, terrainProfile, unitsOf, tDef } from './modules/state.js?v=2';
 import { bpRun } from './modules/blueprint.js?v=2';
 import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx, launchAttackFx } from './modules/motion.js?v=16';
-import { t as tr, tErr, tBot, applyLang, setLang, terrName, cityHist, empireHist, empireName } from './modules/i18n.js?v=8';
+import { t as tr, tErr, tBot, applyLang, setLang, terrName, cityHist, empireHist, empireName } from './modules/i18n.js?v=9';
 
 /* ─── Chargement initial : on récupère la config (empires) pour l'écran de login ─── */
 async function init() {
