@@ -3,9 +3,9 @@
    window les fonctions appelées par les attributs onclick du HTML. */
 
 import { $, fmt, GID, ST, empInfo, ownerColor, empireOf, terrainProfile, unitsOf, tDef } from './modules/state.js?v=2';
-import { bpRun } from './modules/blueprint.js?v=2';
-import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx, launchAttackFx } from './modules/motion.js?v=16';
-import { t as tr, tErr, tBot, applyLang, setLang, terrName, cityHist, empireHist, empireName } from './modules/i18n.js?v=11';
+import { bpRun } from './modules/blueprint.js?v=3';
+import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx, launchAttackFx } from './modules/motion.js?v=17';
+import { t as tr, tErr, tBot, applyLang, setLang, terrName, cityHist, empireHist, empireName } from './modules/i18n.js?v=12';
 
 /* ─── Chargement initial : on récupère la config (empires) pour l'écran de login ─── */
 async function init() {
@@ -337,8 +337,10 @@ function fxBattle(fromTid, toTid, won, projectile) {
   if (projectile) launchFx2d(fromTid, toTid, color);
 }
 
-$('map-canvas').addEventListener('click', e => {
+/* Trouve le territoire sous le pointeur dans la vue 2D. */
+function territoryAt(e) {
   const cv = $('map-canvas');
+  if (!cv) return null;
   const rect = cv.getBoundingClientRect();
   const mx = e.clientX - rect.left, my = e.clientY - rect.top;
   let best = null, bestD = Infinity;
@@ -346,12 +348,60 @@ $('map-canvas').addEventListener('click', e => {
     const d = (pt.x - mx) ** 2 + (pt.y - my) ** 2;
     if (d < bestD) { bestD = d; best = tid; }
   }
-  if (best && bestD < 5000) {
-    if (ST.pickMode === 'attack') { setAttackTarget(Number(best)); return; }
-    if (ST.pickMode === 'move') { doMoveTo(Number(best)); return; }
-    selectTerr(Number(best));
-  }
-});
+  return (best && bestD < 5000) ? Number(best) : null;
+}
+
+/* Clic / tap sur un territoire : respecte le mode en cours (choix de la cible
+   d'attaque, déplacement) ; sinon, si on tient déjà un territoire à soi et qu'on
+   touche un ennemi, ouvre directement le panneau d'attaque (pratique au mobile). */
+function tapTerritory(tid) {
+  if (tid == null) return;
+  if (ST.pickMode === 'attack') { setAttackTarget(tid); return; }
+  if (ST.pickMode === 'move') { doMoveTo(tid); return; }
+  const sel = ST.selected != null ? ST.state.territories[ST.selected] : null;
+  const tgt = ST.state.territories[tid];
+  if (sel && sel.owner === ST.myPid && isAttackable(tgt)) { quickAttack(tid); return; }
+  selectTerr(tid);
+}
+
+/* Clic droit : attaque rapide depuis le meilleur territoire à soi. */
+function tapTerritorySecondary(tid) {
+  if (tid == null) return;
+  if (ST.pickMode === 'attack') { setAttackTarget(tid); return; }
+  if (ST.pickMode === 'move') { doMoveTo(tid); return; }
+  const tgt = ST.state.territories[tid];
+  if (!isAttackable(tgt)) { selectTerr(tid); return; }
+  quickAttack(tid);
+}
+
+/* Cible attaquable : territoire sans propriétaire ou d'un empire ennemi. */
+function isAttackable(t) { return !!t && (!t.owner || empireOf(t) !== ST.myEmpire); }
+
+/* Ouvre le panneau d'attaque sur un ennemi, depuis le meilleur territoire à soi. */
+function quickAttack(targetId) {
+  const tgt = ST.state.territories[targetId];
+  if (!tgt || !isAttackable(tgt)) return;
+  const src = pickAttackSource(targetId);
+  if (src == null) { toast(tr('terr.noSource'), 'error'); selectTerr(targetId); return; }
+  ST.selected = src;
+  ST.pendingAttack = { to: targetId };
+  ST.pickMode = 'attack';
+  renderMap();
+  renderTerrBar();
+}
+
+function pickAttackSource(targetId) {
+  if (ST.selected != null && ST.state.territories[ST.selected] && ST.state.territories[ST.selected].owner === ST.myPid) return ST.selected;
+  const own = Object.values(ST.state.territories).filter(x => x.owner === ST.myPid);
+  if (!own.length) return null;
+  const adj = own.filter(x => (x.adj || []).includes(targetId));
+  const pool = adj.length ? adj : own;
+  pool.sort((a, b) => (b.army || 0) - (a.army || 0));
+  return pool[0].id;
+}
+
+$('map-canvas').addEventListener('click', e => tapTerritory(territoryAt(e)));
+$('map-canvas').addEventListener('contextmenu', e => { e.preventDefault(); tapTerritorySecondary(territoryAt(e)); });
 window.addEventListener('resize', () => renderMap());
 
 /* ─── Sélection d'un territoire ─── */
@@ -453,7 +503,7 @@ function doMoveWith(tid) {
 }
 
 /* ─── Attaque (avec aperçu du combat, même formule que le serveur) ─── */
-function selectTerrAttack(tid) { ST.selected = tid; toggleAttack(); }
+function selectTerrAttack(tid) { quickAttack(tid); }
 function setAttackTarget(tid) {
   ST.pendingAttack = { to: tid };
   renderMap();
@@ -711,7 +761,7 @@ function banner(text, type) {
 }
 
 /* ─── Exports pour les modules (state, blueprint, motion) ─── */
-export { send, toast, banner, selectTerr, renderMap, fxLaunch, fxBattle };
+export { send, toast, banner, selectTerr, renderMap, fxLaunch, fxBattle, tapTerritory, tapTerritorySecondary };
 
 window.__onLangChange = () => {
   if (ST.state && ST.myEmpire) render();

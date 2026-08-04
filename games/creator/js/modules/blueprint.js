@@ -3,7 +3,7 @@
    événements de jeu (état, tour, combat, fin de tour). */
 
 import { $, ST } from './state.js?v=2';
-import { send, toast, banner } from '../main.js?v=2';
+import { send, toast, banner } from '../main.js?v=35';
 
 export function buildBlueprint(code) {
   try {

@@ -4,8 +4,8 @@
 
 import { $, ST } from './state.js?v=2';
 import { colorOfEmpire, empireOf } from './state.js?v=2';
-import { selectTerr, toast, renderMap } from '../main.js?v=2';
-import { t as tr, terrName } from './i18n.js?v=11';
+import { tapTerritory, tapTerritorySecondary, toast, renderMap } from '../main.js?v=35';
+import { t as tr, terrName } from './i18n.js?v=12';
 
 export function renderOptions() {
   const r = (ST.config && ST.config.render) || ST.renderCfg || {};
@@ -62,7 +62,15 @@ async function init3D() {
     const ctx3 = { THREE, scene, camera, renderer, controls, group, markers: new Map(), labels: new Map(), fx: [], opts, animId: null, downX: 0, downY: 0, moved: false };
     renderer.domElement.addEventListener('pointerdown', e => { ctx3.downX = e.clientX; ctx3.downY = e.clientY; ctx3.moved = false; });
     renderer.domElement.addEventListener('pointermove', e => { if (Math.hypot(e.clientX - ctx3.downX, e.clientY - ctx3.downY) > 6) ctx3.moved = true; });
-    renderer.domElement.addEventListener('pointerup', e => { if (!ctx3.moved) onGlobePick(e); });
+    renderer.domElement.addEventListener('pointerup', e => { if (!ctx3.moved && (e.button === 0 || e.pointerType === 'touch')) onGlobePick(e); });
+    renderer.domElement.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      const tid = globePickTid(e);
+      if (tid == null) return;
+      const m = ctx3.markers.get(tid);
+      if (m) ctx3.controls.target.copy(m.position.clone());
+      tapTerritorySecondary(tid);
+    });
     window.addEventListener('resize', onGlobeResize);
     container.appendChild(renderer.domElement);
     ST.threeCtx = ctx3;
@@ -221,9 +229,9 @@ export function refreshGlobeColors() {
   }
 }
 
-function onGlobePick(e) {
+function globePickTid(e) {
   const c = ST.threeCtx;
-  if (!c) return;
+  if (!c) return null;
   const rect = c.renderer.domElement.getBoundingClientRect();
   const mouse = new c.THREE.Vector2(
     ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -232,11 +240,15 @@ function onGlobePick(e) {
   const ray = new c.THREE.Raycaster();
   ray.setFromCamera(mouse, c.camera);
   const hits = ray.intersectObjects(Array.from(c.markers.values()), false);
-  if (hits.length) {
-    const tid = hits[0].object.userData.tid;
-    c.controls.target.copy(hits[0].object.position.clone());
-    selectTerr(tid);
-  }
+  return hits.length ? hits[0].object.userData.tid : null;
+}
+
+function onGlobePick(e) {
+  const c = ST.threeCtx;
+  const tid = globePickTid(e);
+  if (tid == null || !c) return;
+  c.controls.target.copy(c.markers.get(tid).position.clone());
+  tapTerritory(tid);
 }
 
 function onGlobeResize() {
