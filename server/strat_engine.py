@@ -503,12 +503,12 @@ class StrategyEngine:
                 self.territories[tid]['owner'] = members[i % len(members)]
             if cap is not None and self.territories[cap].get('home') == empire:
                 self.territories[cap]['owner'] = members[0]
-        # Soldats de départ recalculés pour le nouveau nombre de joueurs (début de partie)
+        # Soldats de départ recalculés pour le nouveau nombre de joueurs de l'empire
         if self.turn <= 1:
             st = self._cfg['start']
-            base = int(st.get('base_soldiers', 100) * len(self.players) * st.get('soldier_mult', 1.2))
+            base = int(st.get('base_soldiers', 100) * max(1, len(members)) * st.get('soldier_mult', 1.0))
             for t in self.territories.values():
-                if t['owner']:
+                if t['owner'] in members and t.get('home') == empire:
                     t['army'] = base
                     t['units'] = {}
 
@@ -539,7 +539,7 @@ class StrategyEngine:
 
         if cmd == 'recruit':
             amt = data.get('amount', 50)
-            cost = amt // 2
+            cost = amt // 4
             if (me['gold'] or 0) < cost:
                 return {'error': 'Or insuffisant'}
             me['gold'] = me.get('gold', 0) - cost

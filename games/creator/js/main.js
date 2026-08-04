@@ -373,7 +373,7 @@ function renderTerrBar() {
 
   let html = '';
   html += `<span class="terr-bar-info">${t.cap ? '🏰' : '🏘'} ${terrName(t.id) || t.name}</span>`;
-  html += `<span class="terr-bar-hint">👥${fmt(t.pop || 0)} ⚔️${fmt(t.army || 0)} ${unitMix} ${t.fort ? '🧱' + t.fort : ''}${t.fort_hill ? '🏔' : ''}</span>`;
+  html += `<span class="terr-bar-hint">👥<b class="num">${fmt(t.pop || 0)}</b> ⚔️<b class="num">${fmt(t.army || 0)}</b> ${unitMix} ${t.fort ? '🧱' + t.fort : ''}${t.fort_hill ? '🏔' : ''}</span>`;
 
   if (mine) {
     html += `<input class="tb-amount" id="recruit-amt" type="number" min="10" step="10" value="50" title="${tr('terr.recruitTitle')}">`;

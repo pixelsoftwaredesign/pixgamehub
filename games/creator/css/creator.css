@@ -25,8 +25,18 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a24;color:#eee;f
 .empire-btn.selected{opacity:1;background:var(--ec);color:#111}
 
 #game-ui{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column}
-#hud{display:flex;align-items:center;gap:14px;padding:8px 16px;background:rgba(16,10,18,0.95);border-bottom:1px solid #3a2a2a;font-size:13px;z-index:100;flex-wrap:wrap}
+#hud{display:flex;align-items:center;gap:16px;padding:10px 18px;background:rgba(16,10,18,0.95);border-bottom:1px solid #3a2a2a;font-size:16px;z-index:100;flex-wrap:wrap}
 #hud span{white-space:nowrap}
+#hud-empire{color:#e8c84c;font-weight:bold;font-size:17px}
+#hud-turn{color:#9aa;font-weight:bold}
+#hud-gold{color:#ffd34a;font-weight:bold;font-size:17px}
+#hud-food{color:#7fdc8a;font-weight:bold;font-size:17px}
+#hud-wood{color:#d8a35a;font-weight:bold;font-size:17px}
+#hud-stone{color:#b8b8d8;font-weight:bold;font-size:17px}
+#hud-army{color:#ff6b4a;font-weight:bold;font-size:17px}
+#hud-pop{color:#8ad0ff;font-weight:bold;font-size:17px}
+#hud-terr{color:#c8b8ff;font-weight:bold;font-size:17px}
+#hud-players{color:#aab;font-size:13px}
 #end-turn-btn{margin-left:auto;padding:6px 16px;background:#4a2a2a;border:1px solid #8a6a4a;color:#e8e0d0;border-radius:6px;cursor:pointer;font-size:12px}
 #end-turn-btn:hover:not(:disabled){background:#6a3a3a}
 #end-turn-btn:disabled{opacity:0.4}
@@ -38,8 +48,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a24;color:#eee;f
 #fx-canvas{position:absolute;inset:0;pointer-events:none;z-index:3}
 
 #terr-bar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:rgba(16,10,18,0.96);border:1px solid #8a6a3a;border-radius:10px;padding:10px 16px;z-index:600;flex-wrap:wrap;justify-content:center;max-width:94vw;box-shadow:0 4px 30px rgba(0,0,0,0.6)}
-.terr-bar-info{color:#e8c84c;font-weight:bold;font-size:13px}
-.terr-bar-hint{color:#8a9a7a;font-size:11px;font-style:italic}
+.terr-bar-info{color:#e8c84c;font-weight:bold;font-size:18px}
+.terr-bar-hint{color:#9ab;font-size:15px;font-style:italic}
+.terr-bar-hint b.num{color:#fff;font-style:normal;font-size:17px}
 .tb-btn{background:#2a2018;border:1px solid #8a6a3a;color:#f0e0c0;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold}
 .tb-btn:hover:not(.disabled){background:#4a3a28}
 .tb-btn.disabled{opacity:0.4;cursor:not-allowed}
@@ -51,9 +62,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a24;color:#eee;f
 .tb-dest{background:#1a1218;border:1px solid #6a5a4a;color:#f0e0c0;border-radius:6px;padding:6px 8px;font-size:12px;max-width:220px}
 .tb-close{background:transparent;border:1px solid #6a5a4a;color:#ccc;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px}
 
-.pct-high{color:#7dffa0}
-.pct-mid{color:#ffd77d}
-.pct-low{color:#ff8d8d}
+.pct-high{color:#7dffa0;font-weight:bold;font-size:16px}
+.pct-mid{color:#ffd77d;font-weight:bold;font-size:16px}
+.pct-low{color:#ff8d8d;font-weight:bold;font-size:16px}
 
 #city-view{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(12,8,18,0.97);z-index:500;display:flex;flex-direction:column;align-items:center;padding:20px;overflow-y:auto}
 .city-header{display:flex;align-items:center;gap:16px;margin-bottom:12px}

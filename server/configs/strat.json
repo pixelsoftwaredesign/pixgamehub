@@ -6,53 +6,53 @@
   "grid_size": 8,
   "start": {
     "base_soldiers": 100,
-    "soldier_mult": 1.2,
+    "soldier_mult": 1.0,
     "gold": 100,
     "food": 100,
-    "cap_pop": 5000,
-    "home_pop": 1000
+    "cap_pop": 15000,
+    "home_pop": 5000
   },
   "economy": {
-    "gold_base": 20,
-    "gold_per_terr": 5,
-    "food_base": 10,
-    "food_per_terr": 3,
-    "growth_div": 200
+    "gold_base": 40,
+    "gold_per_terr": 10,
+    "food_base": 20,
+    "food_per_terr": 6,
+    "growth_div": 100
   },
   "units": {
     "soldier": {
       "name": "Soldat",
       "icon": "🗡️",
-      "a": 1,
-      "d": 1,
+      "a": 1.5,
+      "d": 1.5,
       "cost": 1
     },
     "cavalry": {
       "name": "Cavalier",
       "icon": "🐴",
-      "a": 2.5,
-      "d": 1.5,
+      "a": 3,
+      "d": 2,
       "cost": 2
     },
     "elephant": {
       "name": "Éléphant",
       "icon": "🐘",
-      "a": 5,
-      "d": 4,
+      "a": 6,
+      "d": 5,
       "cost": 5
     },
     "camel": {
       "name": "Chameau",
       "icon": "🐫",
-      "a": 3,
-      "d": 2.5,
+      "a": 4,
+      "d": 3,
       "cost": 3
     },
     "navy": {
       "name": "Navire",
       "icon": "🚢",
-      "a": 2,
-      "d": 2,
+      "a": 2.5,
+      "d": 2.5,
       "cost": 4
     }
   },
@@ -201,8 +201,8 @@
     "fort_defense": 0.2,
     "terrain_defense": 0.05,
     "assist_pct": 0.2,
-    "variance": 0.4,
-    "def_loss_pct": 0.3
+    "variance": 0.3,
+    "def_loss_pct": 0.35
   },
   "attack": {
     "navy_requires_beach": true,
