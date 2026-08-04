@@ -43,7 +43,7 @@
 
 <div id="game-ui" style="display:none">
   <div id="hud">
-    <span id="hud-empire"></span><button class="info-btn" title="Histoire de l'empire" onclick="showEmpireHist()">❓</button>
+    <span id="hud-empire"></span><button class="info-btn" title="Histoire de l'empire" data-i18n-title="empire.historyBtn" onclick="showEmpireHist()">❓</button>
     <span id="hud-turn">Tour 0</span>
     <span id="hud-gold">💰0</span>
     <span id="hud-food">🌾0</span>
@@ -70,7 +70,7 @@
 <div id="city-view" style="display:none">
   <div class="city-header">
     <h2 id="city-title"></h2>
-    <button class="info-btn" title="Histoire de la ville" onclick="showCityHist()">❓</button>
+    <button class="info-btn" title="Histoire de la ville" data-i18n-title="city.historyBtn" onclick="showCityHist()">❓</button>
     <div id="city-stats"></div>
     <button onclick="closeCity()" class="close-btn">✕</button>
   </div>
@@ -91,6 +91,6 @@
 <div id="toast-box"></div>
 <div id="battle-banner"></div>
 
-<script type="module" src="js/main.js?v=30"></script>
+<script type="module" src="js/main.js?v=31"></script>
 </body>
 </html>

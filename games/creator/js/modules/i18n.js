@@ -97,12 +97,20 @@ const DICT = {
     'res.food': 'Nourriture',
     'res.wood': 'Bois',
     'res.stone': 'Pierre',
-    'bld.Maison': 'Maison',
-    'bld.Ferme': 'Ferme',
-    'bld.Mur': 'Mur',
-    'bld.Caserne': 'Caserne',
-    'bld.Temple': 'Temple',
-    'bld.Port': 'Port',
+    'bld.house': 'Maison',
+    'bld.farm': 'Ferme',
+    'bld.wall': 'Mur',
+    'bld.barracks': 'Caserne',
+    'bld.temple': 'Temple',
+    'bld.port': 'Port',
+    'unit.soldier': 'Soldat',
+    'unit.cavalry': 'Cavalier',
+    'unit.elephant': 'Éléphant',
+    'unit.camel': 'Chameau',
+    'unit.navy': 'Navire',
+    'city.historyBtn': "Histoire de la ville",
+    'empire.historyBtn': "Histoire de l'empire",
+    'legend.hist': 'Histoire',
   },
   en: {
     'login.subtitle': 'Game created in the Studio',
@@ -189,12 +197,20 @@ const DICT = {
     'res.food': 'Food',
     'res.wood': 'Wood',
     'res.stone': 'Stone',
-    'bld.Maison': 'House',
-    'bld.Ferme': 'Farm',
-    'bld.Mur': 'Wall',
-    'bld.Caserne': 'Barracks',
-    'bld.Temple': 'Temple',
-    'bld.Port': 'Port',
+    'bld.house': 'House',
+    'bld.farm': 'Farm',
+    'bld.wall': 'Wall',
+    'bld.barracks': 'Barracks',
+    'bld.temple': 'Temple',
+    'bld.port': 'Port',
+    'unit.soldier': 'Soldier',
+    'unit.cavalry': 'Cavalry',
+    'unit.elephant': 'Elephant',
+    'unit.camel': 'Camel',
+    'unit.navy': 'Warship',
+    'city.historyBtn': 'City history',
+    'empire.historyBtn': "Empire's history",
+    'legend.hist': 'History',
   },
   ar: {
     'login.subtitle': 'لعبة أُنشئت في الاستوديو',
@@ -281,12 +297,20 @@ const DICT = {
     'res.food': 'الغذاء',
     'res.wood': 'الخشب',
     'res.stone': 'الحجر',
-    'bld.Maison': 'منزل',
-    'bld.Ferme': 'مزرعة',
-    'bld.Mur': 'سور',
-    'bld.Caserne': 'ثكنة',
-    'bld.Temple': 'معبد',
-    'bld.Port': 'ميناء',
+    'bld.house': 'منزل',
+    'bld.farm': 'مزرعة',
+    'bld.wall': 'سور',
+    'bld.barracks': 'ثكنة',
+    'bld.temple': 'معبد',
+    'bld.port': 'ميناء',
+    'unit.soldier': 'جندي',
+    'unit.cavalry': 'فارس',
+    'unit.elephant': 'فيل',
+    'unit.camel': 'جمل',
+    'unit.navy': 'سفينة حربية',
+    'city.historyBtn': 'تاريخ المدينة',
+    'empire.historyBtn': 'تاريخ الإمبراطورية',
+    'legend.hist': 'التاريخ',
   },
   es: {
     'login.subtitle': 'Juego creado en el Estudio',
@@ -373,12 +397,20 @@ const DICT = {
     'res.food': 'Comida',
     'res.wood': 'Madera',
     'res.stone': 'Piedra',
-    'bld.Maison': 'Casa',
-    'bld.Ferme': 'Granja',
-    'bld.Mur': 'Muro',
-    'bld.Caserne': 'Cuartel',
-    'bld.Temple': 'Templo',
-    'bld.Port': 'Puerto',
+    'bld.house': 'Casa',
+    'bld.farm': 'Granja',
+    'bld.wall': 'Muro',
+    'bld.barracks': 'Cuartel',
+    'bld.temple': 'Templo',
+    'bld.port': 'Puerto',
+    'unit.soldier': 'Soldado',
+    'unit.cavalry': 'Caballero',
+    'unit.elephant': 'Elefante',
+    'unit.camel': 'Camello',
+    'unit.navy': 'Barco de guerra',
+    'city.historyBtn': 'Historia de la ciudad',
+    'empire.historyBtn': 'Historia del imperio',
+    'legend.hist': 'Historia',
   },
   ja: {
     'login.subtitle': 'Studio で作成されたゲーム',
@@ -465,12 +497,20 @@ const DICT = {
     'res.food': '食料',
     'res.wood': '木材',
     'res.stone': '石材',
-    'bld.Maison': '家',
-    'bld.Ferme': '農場',
-    'bld.Mur': '壁',
-    'bld.Caserne': '兵舎',
-    'bld.Temple': '神殿',
-    'bld.Port': '港',
+    'bld.house': '家',
+    'bld.farm': '農場',
+    'bld.wall': '壁',
+    'bld.barracks': '兵舎',
+    'bld.temple': '神殿',
+    'bld.port': '港',
+    'unit.soldier': '兵士',
+    'unit.cavalry': '騎兵',
+    'unit.elephant': '戦象',
+    'unit.camel': 'ラクダ',
+    'unit.navy': '軍艦',
+    'city.historyBtn': '都市の歴史',
+    'empire.historyBtn': '帝国の歴史',
+    'legend.hist': '歴史',
   },
   zh: {
     'login.subtitle': '在工作室中创建的游戏',
@@ -557,12 +597,20 @@ const DICT = {
     'res.food': '食物',
     'res.wood': '木材',
     'res.stone': '石材',
-    'bld.Maison': '房屋',
-    'bld.Ferme': '农场',
-    'bld.Mur': '城墙',
-    'bld.Caserne': '兵营',
-    'bld.Temple': '神殿',
-    'bld.Port': '港口',
+    'bld.house': '房屋',
+    'bld.farm': '农场',
+    'bld.wall': '城墙',
+    'bld.barracks': '兵营',
+    'bld.temple': '神殿',
+    'bld.port': '港口',
+    'unit.soldier': '士兵',
+    'unit.cavalry': '骑兵',
+    'unit.elephant': '战象',
+    'unit.camel': '骆驼',
+    'unit.navy': '战舰',
+    'city.historyBtn': '城市历史',
+    'empire.historyBtn': '帝国历史',
+    'legend.hist': '历史',
   },
 };
 
@@ -611,7 +659,7 @@ export function tErr(msg) {
 }
 
 const BOT_MAP = { 'renforce ses frontières': 'bot.reinforce' };
-const BLD_MAP = { Maison: 'bld.Maison', Ferme: 'bld.Ferme', Mur: 'bld.Mur', Caserne: 'bld.Caserne', Temple: 'bld.Temple', Port: 'bld.Port' };
+const BLD_MAP = { Maison: 'bld.house', Ferme: 'bld.farm', Mur: 'bld.wall', Caserne: 'bld.barracks', Temple: 'bld.temple', Port: 'bld.port' };
 const BOT_RE = [[/^construit (.+)$/, m => t('bot.built', { name: BLD_MAP[m[1]] ? t(BLD_MAP[m[1]]) : m[1] })]];
 
 export function tBot(msg) {
@@ -637,6 +685,7 @@ export function applyLang() {
   document.documentElement.dir = meta.dir;
   for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
   for (const el of document.querySelectorAll('[data-i18n-ph]')) el.placeholder = t(el.dataset.i18nPh);
+  for (const el of document.querySelectorAll('[data-i18n-title]')) el.title = t(el.dataset.i18nTitle);
   const sel = document.getElementById('lang-select');
   if (sel) sel.value = LANG;
 }
@@ -735,6 +784,54 @@ const TERR_NAMES = {
 export function terrName(id) {
   const m = TERR_NAMES[LANG];
   return (m && m[String(id)]) || '';
+}
+
+/* ─── Noms d'empires localisés ───
+   Clés = id d'empire (config strat.json). Les langues absentes utilisent
+   le nom original de la config. */
+const EMP_NAMES = {
+  fr: {
+    carthage: 'Carthage', rome: 'Rome', egypt: 'Égypte', persia: 'Perse', sparta: 'Sparte',
+    greece: 'Grèce', saba: 'Saba', maya: 'Maya', assyria: 'Assyrie', boboli: 'Boboli',
+    japan: 'Japon', mongol: 'Mongol', russia: 'Russie', china: 'Chine', wako: 'Wako',
+    australia: 'Australie & NZ', india: 'Inde', mali: 'Mali', inuit: 'Inuit', inca: 'Inca',
+  },
+  en: {
+    carthage: 'Carthage', rome: 'Rome', egypt: 'Egypt', persia: 'Persia', sparta: 'Sparta',
+    greece: 'Greece', saba: 'Saba', maya: 'Maya', assyria: 'Assyria', boboli: 'Boboli',
+    japan: 'Japan', mongol: 'Mongol', russia: 'Russia', china: 'China', wako: 'Wako',
+    australia: 'Australia & NZ', india: 'India', mali: 'Mali', inuit: 'Inuit', inca: 'Inca',
+  },
+  ar: {
+    carthage: 'قرطاج', rome: 'روما', egypt: 'مصر', persia: 'فارس', sparta: 'إسبرطة',
+    greece: 'اليونان', saba: 'سبأ', maya: 'المايا', assyria: 'آشور', boboli: 'بوبولي',
+    japan: 'اليابان', mongol: 'المغول', russia: 'روسيا', china: 'الصين', wako: 'واكو',
+    australia: 'أستراليا ونيوزيلندا', india: 'الهند', mali: 'مالي', inuit: 'الإنويت', inca: 'الإنكا',
+  },
+  es: {
+    carthage: 'Cartago', rome: 'Roma', egypt: 'Egipto', persia: 'Persia', sparta: 'Esparta',
+    greece: 'Grecia', saba: 'Saba', maya: 'Maya', assyria: 'Asiria', boboli: 'Boboli',
+    japan: 'Japón', mongol: 'Mongol', russia: 'Rusia', china: 'China', wako: 'Wako',
+    australia: 'Australia y NZ', india: 'India', mali: 'Malí', inuit: 'Inuit', inca: 'Inca',
+  },
+  ja: {
+    carthage: 'カルタゴ', rome: 'ローマ', egypt: 'エジプト', persia: 'ペルシア', sparta: 'スパルタ',
+    greece: 'ギリシャ', saba: 'サバ', maya: 'マヤ', assyria: 'アッシリア', boboli: 'ボボリ',
+    japan: '日本', mongol: 'モンゴル', russia: 'ロシア', china: '中国', wako: '倭寇',
+    australia: 'オーストラリア・NZ', india: 'インド', mali: 'マリ', inuit: 'イヌイット', inca: 'インカ',
+  },
+  zh: {
+    carthage: '迦太基', rome: '罗马', egypt: '埃及', persia: '波斯', sparta: '斯巴达',
+    greece: '希腊', saba: '萨巴', maya: '玛雅', assyria: '亚述', boboli: '波波利',
+    japan: '日本', mongol: '蒙古', russia: '俄罗斯', china: '中国', wako: '倭寇',
+    australia: '澳大利亚与新西兰', india: '印度', mali: '马里', inuit: '因纽特', inca: '印加',
+  },
+};
+
+/* Renvoie le nom localisé d'un empire (id), ou '' si non traduit. */
+export function empireName(eid) {
+  const m = EMP_NAMES[LANG];
+  return (m && m[String(eid)]) || '';
 }
 
 /* ─── Flash historique des villes ───

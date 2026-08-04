@@ -5,7 +5,7 @@
 import { $, fmt, GID, ST, empInfo, ownerColor, empireOf, terrainProfile, unitsOf, tDef } from './modules/state.js?v=2';
 import { bpRun } from './modules/blueprint.js?v=2';
 import { renderOptions, buildGlobeMarkers, refreshGlobeColors, toggle3D, playBattleFx, launchAttackFx } from './modules/motion.js?v=16';
-import { t as tr, tErr, tBot, applyLang, setLang, terrName, cityHist, empireHist } from './modules/i18n.js?v=7';
+import { t as tr, tErr, tBot, applyLang, setLang, terrName, cityHist, empireHist, empireName } from './modules/i18n.js?v=8';
 
 /* ─── Chargement initial : on récupère la config (empires) pour l'écran de login ─── */
 async function init() {
@@ -48,7 +48,7 @@ function renderEmpireButtons() {
     const b = document.createElement('button');
     b.className = 'empire-btn' + (i === 0 ? ' selected' : '');
     b.style.setProperty('--ec', info.color || '#888');
-    b.textContent = (info.icon || '') + ' ' + info.name;
+    b.textContent = (info.icon || '') + ' ' + (empireName(eid) || info.name);
     b.dataset.eid = eid;
     b.onclick = () => {
       wrap.querySelectorAll('.empire-btn').forEach(x => x.classList.remove('selected'));
@@ -106,7 +106,7 @@ function onMsg(m) {
     toast(tr('move.sent', { n: fmt(mv.amount) }), 'info');
   } else if (m.action === 'war') {
     const w = m.war;
-    banner(tr('war.banner', { a: w.declared, b: w.target }), 'war');
+    banner(tr('war.banner', { a: empireName(w.declared) || ST.config.empires[w.declared]?.name || w.declared, b: empireName(w.target) || ST.config.empires[w.target]?.name || w.target }), 'war');
   } else if (m.action === 'bot') {
     toast(`🤖 ${m.bot.icon || ''} ${m.bot.empire} : ${tBot(m.bot.msg)}`, 'info');
   } else if (m.action === 'game_over') {
@@ -149,7 +149,7 @@ function send(cmd, data) {
 /* ─── Rendu global ─── */
 function render() {
   const p = ST.state.players[ST.myPid];
-  $('hud-empire').textContent = (empInfo(ST.myEmpire)?.icon || '') + ' ' + (empInfo(ST.myEmpire)?.name || '');
+  $('hud-empire').textContent = (empInfo(ST.myEmpire)?.icon || '') + ' ' + (empireName(ST.myEmpire) || empInfo(ST.myEmpire)?.name || '');
   $('hud-turn').textContent = tr('hud.turn', { n: ST.state.turn });
   $('hud-gold').textContent = '💰' + fmt(p?.gold || 0);
   $('hud-food').textContent = '🌾' + fmt(p?.food || 0);
@@ -414,7 +414,7 @@ function renderConvert() {
   for (const [uid, u] of Object.entries(ST.config.units)) {
     if (uid === 'soldier') continue;
     html += `<input class="tb-amount" id="cv-${uid}" type="number" min="1" value="1" title="${tr('terr.convertCost', { n: u.cost })}">`;
-    html += `<button class="tb-btn tb-conv" onclick="doConvert('${uid}')">${u.icon || '▪'} ${u.name} (${u.cost}⚔️)</button>`;
+    html += `<button class="tb-btn tb-conv" onclick="doConvert('${uid}')">${u.icon || '▪'} ${tr('unit.' + uid) === 'unit.' + uid ? u.name : tr('unit.' + uid)} (${u.cost}⚔️)</button>`;
   }
   html += `<button class="tb-close" onclick="closeBar()">✕</button>`;
   $('terr-bar').innerHTML += `<span class="tb-sep"></span>${html}`;
@@ -588,7 +588,7 @@ function showEmpireHist(eid) {
   const id = eid || ST.myEmpire;
   const e = empInfo(id);
   if (!e) return;
-  showHist(`${e.icon} ${e.name}`, empireHist(id));
+  showHist(`${e.icon} ${empireName(id) || e.name}`, empireHist(id));
 }
 function closeHist(e) {
   const t = e && e.target;
@@ -637,7 +637,7 @@ function renderCity() {
   let th = '';
   for (const [bid, b] of Object.entries(ST.config.buildings)) {
     const cost = Object.entries(b.cost || {}).map(([r, n]) => `${r === 'gold' ? '💰' : r === 'food' ? '🌾' : r === 'wood' ? '🪵' : '⛰'}${n}`).join(' ');
-    th += `<button id="bt-${bid}" class="${ST.curBuild === bid ? 'active' : ''}" onclick="setBuild('${bid}')">${b.icon || '▪'} ${b.name} (${cost})</button>`;
+    th += `<button id="bt-${bid}" class="${ST.curBuild === bid ? 'active' : ''}" onclick="setBuild('${bid}')">${b.icon || '▪'} ${tr('bld.' + bid) === 'bld.' + bid ? b.name : tr('bld.' + bid)} (${cost})</button>`;
   }
   tools.innerHTML = th || '<span>—</span>';
 }
@@ -658,7 +658,7 @@ function renderLegend() {
   let html = `<h4>${tr('legend.title')}</h4>`;
   for (const [eid, e] of Object.entries(ST.state.empires)) {
     const isMe = eid === ST.myEmpire;
-    html += `<div class="legend-row ${isMe ? 'you' : ''}"><span class="swatch" style="background:${e.color}"></span><span class="ename">${e.icon} ${e.name}</span><span class="yours">${fmt(e.army)}⚔️ ${fmt(e.pop)}👥</span><span class="ewar">${e.wars.length ? '⚔️' : ''}</span><button class="info-btn" title="Histoire" onclick="showEmpireHist('${eid}')">❓</button></div>`;
+    html += `<div class="legend-row ${isMe ? 'you' : ''}"><span class="swatch" style="background:${e.color}"></span><span class="ename">${e.icon} ${empireName(eid) || e.name}</span><span class="yours">${fmt(e.army)}⚔️ ${fmt(e.pop)}👥</span><span class="ewar">${e.wars.length ? '⚔️' : ''}</span><button class="info-btn" title="${tr('legend.hist')}" onclick="showEmpireHist('${eid}')">❓</button></div>`;
   }
   el.innerHTML = html;
 }
@@ -675,7 +675,7 @@ function renderWarLog() {
   if (!wars.length) html += `<div class="war-entry"><span class="war-win">☮ ${tr('warLog.none')}</span></div>`;
   for (const [a, b] of wars) {
     const me = a === ST.myEmpire || b === ST.myEmpire;
-    html += `<div class="war-entry">⚔️ <span class="war-att">${empInfo(a)?.icon} ${empInfo(a)?.name}</span> vs <span class="war-def">${empInfo(b)?.icon} ${empInfo(b)?.name}</span>${me ? ` <span class="war-win">(${tr('warLog.you')})</span>` : ''}</div>`;
+    html += `<div class="war-entry">⚔️ <span class="war-att">${empInfo(a)?.icon} ${empireName(a) || empInfo(a)?.name}</span> vs <span class="war-def">${empInfo(b)?.icon} ${empireName(b) || empInfo(b)?.name}</span>${me ? ` <span class="war-win">(${tr('warLog.you')})</span>` : ''}</div>`;
   }
   el.innerHTML = html;
 }
@@ -715,6 +715,8 @@ export { send, toast, banner, selectTerr, renderMap, fxLaunch, fxBattle };
 
 window.__onLangChange = () => {
   if (ST.state && ST.myEmpire) render();
+  else if (ST.config && !ST.state) renderEmpireButtons();
+  if (ST.cityTid != null && ST.state) renderCity();
   if (ST.threeCtx) { buildGlobeMarkers(); refreshGlobeColors(); }
 };
 
