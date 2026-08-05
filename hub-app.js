@@ -6,6 +6,7 @@
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const H = window.HubLang;
 
 const store = {
     token: localStorage.getItem('pix_token') || '',
@@ -95,14 +96,14 @@ function openAuth() {
     el.innerHTML = `
         <div class="auth-box">
             <h2>PIXGAMEHUB</h2>
-            <div class="auth-sub">Connecte-toi pour ta bibliothèque, tes succès et le chat</div>
+            <div class="auth-sub">${esc(H.t('auth.sub'))}</div>
             <form id="auth-form">
-                <div class="field"><label>Nom d'utilisateur</label><input id="auth-username" type="text" minlength="3" required /></div>
-                <div class="field"><label>Mot de passe</label><input id="auth-password" type="password" minlength="4" required /></div>
-                <button class="btn btn-primary" style="width:100%;justify-content:center" id="auth-submit" type="submit">CONNEXION</button>
+                <div class="field"><label>${esc(H.t('auth.username'))}</label><input id="auth-username" type="text" minlength="3" required /></div>
+                <div class="field"><label>${esc(H.t('auth.password'))}</label><input id="auth-password" type="password" minlength="4" required /></div>
+                <button class="btn btn-primary" style="width:100%;justify-content:center" id="auth-submit" type="submit">${esc(H.t('auth.login'))}</button>
                 <div class="auth-error" id="auth-error"></div>
             </form>
-            <div class="auth-toggle" id="auth-toggle">Pas de compte ? S'inscrire</div>
+            <div class="auth-toggle" id="auth-toggle">${esc(H.t('auth.toggleSignup'))}</div>
         </div>`;
     root.appendChild(el);
     el.addEventListener('click', e => { if (e.target === el) el.remove(); });
@@ -111,8 +112,8 @@ function openAuth() {
     const btn = $('#auth-submit'), toggle = $('#auth-toggle'), err = $('#auth-error');
     toggle.onclick = () => {
         isRegister = !isRegister;
-        btn.textContent = isRegister ? "S'INSCRIRE" : 'CONNEXION';
-        toggle.textContent = isRegister ? 'Déjà un compte ? Se connecter' : "Pas de compte ? S'inscrire";
+        btn.textContent = isRegister ? H.t('auth.signup') : H.t('auth.login');
+        toggle.textContent = isRegister ? H.t('auth.toggleLogin') : H.t('auth.toggleSignup');
     };
     $('#auth-form').onsubmit = async (e) => {
         e.preventDefault();
@@ -121,12 +122,12 @@ function openAuth() {
         err.textContent = '';
         const path = isRegister ? '/api/register' : '/api/login';
         const res = await api(path, { method: 'POST', body: JSON.stringify({ username, password }) });
-        if (!res.ok) { err.textContent = res.error || 'Erreur'; return; }
+        if (!res.ok) { err.textContent = res.error || H.t('auth.error'); return; }
         if (isRegister) {
             isRegister = false;
-            btn.textContent = 'CONNEXION';
-            toggle.textContent = "Pas de compte ? S'inscrire";
-            err.textContent = 'Compte créé ! Connecte-toi maintenant.';
+            btn.textContent = H.t('auth.login');
+            toggle.textContent = H.t('auth.toggleSignup');
+            err.textContent = H.t('auth.created');
             err.style.color = 'var(--green)';
             return;
         }
@@ -134,7 +135,7 @@ function openAuth() {
         localStorage.setItem('pix_token', res.token);
         localStorage.setItem('pix_username', res.username);
         el.remove();
-        toast(`Bienvenue, ${res.username} !`, 'success');
+        toast(H.t('toast.welcome', { name: res.username }), 'success');
         wsSend({ action: 'auth', token: res.token });
         renderUserZone();
         await refreshLibrary();
@@ -150,17 +151,17 @@ function renderUserZone() {
         zone.innerHTML = `
             <div class="avatar" title="${esc(store.username)}">${esc(initials)}</div>
             <span class="username">${esc(store.username)}</span>
-            <button class="btn btn-ghost btn-sm" id="btn-logout">Quitter</button>`;
+            <button class="btn btn-ghost btn-sm" id="btn-logout">${esc(H.t('user.logout'))}</button>`;
         $('#btn-logout').onclick = async () => {
             await api('/api/logout', { method: 'POST', body: JSON.stringify({ token: store.token }) });
             store.token = ''; store.username = '';
             localStorage.removeItem('pix_token'); localStorage.removeItem('pix_username');
             store.library.clear();
-            toast('Déconnecté.', 'info');
+            toast(H.t('toast.logout'), 'info');
             renderUserZone(); route();
         };
     } else {
-        zone.innerHTML = `<button class="btn btn-primary btn-sm" id="btn-login">SE CONNECTER</button>`;
+        zone.innerHTML = `<button class="btn btn-primary btn-sm" id="btn-login">${esc(H.t('user.login'))}</button>`;
         $('#btn-login').onclick = () => openAuth();
     }
 }
@@ -192,13 +193,13 @@ function gameCard(g) {
             <div class="game-icon">${esc(g.icon || '🎮')}</div>
         </div>
         <div class="game-info">
-            <span class="game-genre">${esc(g.genre || 'Jeu')}${g.studio ? ' · Studio' : ''}</span>
+            <span class="game-genre">${esc(H.genre(g.genre))}${g.studio ? ' ' + esc(H.t('card.studioTag')) : ''}</span>
             <h3>${esc(g.name)}</h3>
             <div class="game-tags">${(g.tags || []).slice(0, 3).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
         </div>
         <div class="game-footer">
-            <span class="game-online">${online > 0 ? `<b>${online}</b> en jeu` : 'En ligne'}</span>
-            <button class="btn ${owned ? 'btn-ghost' : 'btn-primary'} btn-sm btn-play">${owned ? 'JOUER' : 'JOUER'}</button>
+            <span class="game-online">${online > 0 ? `<b>${online}</b> ${esc(H.t('card.online', { n: '' }))}` : esc(H.t('card.onlineNone'))}</span>
+            <button class="btn ${owned ? 'btn-ghost' : 'btn-primary'} btn-sm btn-play">${esc(H.t('card.play'))}</button>
         </div>
     </div>`;
 }
@@ -213,7 +214,7 @@ function bindCard(root, g) {
 
 function renderGrid(container, games, emptyMsg) {
     if (!games.length) {
-        container.innerHTML = `<div class="empty-state"><div class="big-icon">🎮</div><h2>Aucun jeu</h2><p>${esc(emptyMsg || '')}</p></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="big-icon">🎮</div><h2>${esc(H.t('grid.empty'))}</h2><p>${esc(emptyMsg || '')}</p></div>`;
         return;
     }
     container.innerHTML = games.map(gameCard).join('');
@@ -224,7 +225,7 @@ function renderGrid(container, games, emptyMsg) {
 async function playGame(g) {
     if (store.token && !store.library.has(g.id)) {
         const res = await api('/api/library/toggle', { method: 'POST', body: JSON.stringify({ token: store.token, game: g.id }) });
-        if (res.added) { store.library.add(g.id); toast(`« ${g.name} » ajouté à votre bibliothèque.`, 'success'); }
+        if (res.added) { store.library.add(g.id); toast(H.t('play.added', { name: g.name }), 'success'); }
         if (store.token && ACH_FIRST[g.id]) {
             await api('/api/achievements/unlock', { method: 'POST', body: JSON.stringify({ token: store.token, game: g.id, ach: 'first_play' }) });
         }
@@ -255,57 +256,57 @@ function renderStore() {
         <section class="hero">
             <div class="hero-preview"><canvas class="preview-canvas" data-game="${esc(featured.id)}" data-fixed></canvas></div>
             <div class="hero-body">
-                <span class="hero-genre">${esc(featured.genre || 'Jeu')} · À la une</span>
+                <span class="hero-genre">${esc(H.genre(featured.genre))} ${esc(H.t('store.featured'))}</span>
                 <h1 class="hero-title">${esc(featured.name)}</h1>
                 <p class="hero-desc">${esc(featured.desc)}</p>
                 <div class="hero-actions">
-                    <button class="btn btn-gold btn-lg" id="hero-play">▶ JOUER</button>
-                    <button class="btn btn-ghost" id="hero-detail">Voir la fiche</button>
-                    <span class="hero-players" id="hero-online">${(store.online[featured.id] || 0)} en jeu</span>
+                    <button class="btn btn-gold btn-lg" id="hero-play">${esc(H.t('store.play'))}</button>
+                    <button class="btn btn-ghost" id="hero-detail">${esc(H.t('store.detail'))}</button>
+                    <span class="hero-players" id="hero-online">${esc(H.t('card.online', { n: store.online[featured.id] || 0 }))}</span>
                 </div>
             </div>
         </section>
-        <h2 class="section-title">${query ? `Résultats pour « ${esc(query)} »` : 'Tous les jeux'} <small>${list.length} jeux</small></h2>
+        <h2 class="section-title">${query ? esc(H.t('store.results', { q: query })) : esc(H.t('store.allGames'))} <small>${esc(H.t('store.count', { n: list.length }))}</small></h2>
         <div class="games-grid" id="store-grid"></div>`;
 
     $('#hero-play').onclick = () => playGame(featured);
     $('#hero-detail').onclick = () => location.hash = '#game/' + encodeURIComponent(featured.id);
-    renderGrid($('#store-grid'), list, 'Aucun jeu ne correspond à ta recherche.');
+    renderGrid($('#store-grid'), list, H.t('store.emptySearch'));
     PixPreviews.mount($('.hero'));
 }
 
 function renderGameOnline() {
     const el = $('#detail-online');
-    if (el) el.innerHTML = `${store.online[store.currentGame] || 0} en jeu`;
+    if (el) el.innerHTML = esc(H.t('card.online', { n: store.online[store.currentGame] || 0 }));
 }
 
 // ─── Game detail ───────────────────────────────────────────────────
 async function renderGame(gid) {
     const view = $('#view');
     const g = store.catalog.find(x => x.id === gid);
-    if (!g) { view.innerHTML = `<div class="empty-state"><h2>Jeu introuvable</h2></div>`; return; }
+    if (!g) { view.innerHTML = `<div class="empty-state"><h2>${esc(H.t('detail.notFound'))}</h2></div>`; return; }
     const owned = store.library.has(g.id);
 
     view.innerHTML = `
-        <a class="detail-back" href="#store">← Retour à la boutique</a>
+        <a class="detail-back" href="#store">${esc(H.t('detail.back'))}</a>
         <section class="game-detail">
             <div class="detail-hero">
                 <canvas class="preview-canvas" data-game="${esc(g.id)}" data-fixed></canvas>
                 <div class="detail-body">
-                    <span class="detail-genre">${esc(g.genre || 'Jeu')}${g.studio ? ' · Créé dans le Studio' : ''}</span>
+                    <span class="detail-genre">${esc(H.genre(g.genre))}${g.studio ? ' ' + esc(H.t('detail.studioMade')) : ''}</span>
                     <h1>${esc(g.icon || '')} ${esc(g.name)}</h1>
                     <p class="detail-desc">${esc(g.desc)}</p>
                     <div class="game-tags">${(g.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
                     <div class="detail-actions">
-                        <button class="btn btn-gold btn-lg" id="detail-play">▶ JOUER</button>
-                        <button class="btn ${owned ? 'btn-danger' : 'btn-ghost'}" id="detail-lib">${owned ? '− Retirer de la bibliothèque' : '+ Ajouter à la bibliothèque'}</button>
-                        <span class="detail-players" id="detail-online">${store.online[g.id] || 0} en jeu</span>
+                        <button class="btn btn-gold btn-lg" id="detail-play">${esc(H.t('store.play'))}</button>
+                        <button class="btn ${owned ? 'btn-danger' : 'btn-ghost'}" id="detail-lib">${owned ? esc(H.t('detail.removeLib')) : esc(H.t('detail.addLib'))}</button>
+                        <span class="detail-players" id="detail-online">${esc(H.t('card.online', { n: store.online[g.id] || 0 }))}</span>
                     </div>
                 </div>
             </div>
             <div class="detail-stats">
-                <div class="panel"><h4>🏆 Classement top 10</h4><ul class="lb-list" id="detail-lb"><li class="lb-empty">Chargement...</li></ul></div>
-                <div class="panel"><h4>🎖️ Succès</h4><div class="ach-grid" id="detail-ach"><div class="lb-empty">Chargement...</div></div></div>
+                <div class="panel"><h4>${esc(H.t('detail.leaderboard'))}</h4><ul class="lb-list" id="detail-lb"><li class="lb-empty">${esc(H.t('detail.loading'))}</li></ul></div>
+                <div class="panel"><h4>${esc(H.t('detail.achievements'))}</h4><div class="ach-grid" id="detail-ach"><div class="lb-empty">${esc(H.t('detail.loading'))}</div></div></div>
             </div>
         </section>`;
 
@@ -313,10 +314,10 @@ async function renderGame(gid) {
 
     $('#detail-play').onclick = () => playGame(g);
     $('#detail-lib').onclick = async () => {
-        if (!store.token) { toast('Connecte-toi pour gérer ta bibliothèque.', 'info'); openAuth(); return; }
+        if (!store.token) { toast(H.t('lib.needsLogin'), 'info'); openAuth(); return; }
         const res = await api('/api/library/toggle', { method: 'POST', body: JSON.stringify({ token: store.token, game: g.id }) });
-        if (res.added) { store.library.add(g.id); toast('Ajouté à la bibliothèque.', 'success'); }
-        else { store.library.delete(g.id); toast('Retiré de la bibliothèque.', 'info'); }
+        if (res.added) { store.library.add(g.id); toast(H.t('lib.added'), 'success'); }
+        else { store.library.delete(g.id); toast(H.t('lib.removed'), 'info'); }
         renderGame(gid);
     };
 
@@ -328,18 +329,18 @@ async function renderGame(gid) {
 }
 
 function renderLeaderboard(el, entries) {
-    if (!entries.length) { el.innerHTML = '<li class="lb-empty">Aucun score enregistré.</li>'; return; }
+    if (!entries.length) { el.innerHTML = `<li class="lb-empty">${esc(H.t('lb.empty'))}</li>`; return; }
     el.innerHTML = entries.map((e, i) => `
         <li class="lb-item">
             <span class="lb-rank">#${i + 1}</span>
             <span class="lb-name">${esc(e.username)}</span>
-            <span class="lb-score">${Number(e.score).toLocaleString('fr-FR')} PTS</span>
+            <span class="lb-score">${esc(H.t('lb.pts', { score: H.fmtNum(e.score) }))}</span>
         </li>`).join('');
 }
 
 function renderAchievements(el, defs, unlocked) {
     const set = new Set(unlocked);
-    if (!defs.length) { el.innerHTML = '<div class="lb-empty">Pas encore de succès pour ce jeu.</div>'; return; }
+    if (!defs.length) { el.innerHTML = `<div class="lb-empty">${esc(H.t('ach.empty'))}</div>`; return; }
     el.innerHTML = defs.map(a => `
         <div class="ach-item ${set.has(a.id) ? 'earned' : ''}" title="${esc(a.desc)}">
             <div class="ach-icon">${set.has(a.id) ? esc(a.icon || '🏆') : '🔒'}</div>
@@ -355,9 +356,9 @@ async function renderLibrary() {
         view.innerHTML = `
             <div class="empty-state">
                 <div class="big-icon">📚</div>
-                <h2>Ta bibliothèque est vide</h2>
-                <p>Connecte-toi pour retrouver tes jeux et tes succès.</p>
-                <button class="btn btn-primary btn-lg" id="lib-login">SE CONNECTER</button>
+                <h2>${esc(H.t('lib.emptyTitle'))}</h2>
+                <p>${esc(H.t('lib.emptyDesc'))}</p>
+                <button class="btn btn-primary btn-lg" id="lib-login">${esc(H.t('user.login'))}</button>
             </div>`;
         $('#lib-login').onclick = () => openAuth();
         return;
@@ -365,9 +366,9 @@ async function renderLibrary() {
     await refreshLibrary();
     const owned = store.catalog.filter(g => store.library.has(g.id));
     view.innerHTML = `
-        <h2 class="section-title">📚 Ma bibliothèque <small>${owned.length} jeux</small></h2>
+        <h2 class="section-title">${esc(H.t('lib.title'))} <small>${esc(H.t('store.count', { n: owned.length }))}</small></h2>
         <div class="games-grid" id="lib-grid"></div>`;
-    renderGrid($('#lib-grid'), owned, 'Joue à un jeu pour l’ajouter ici.');
+    renderGrid($('#lib-grid'), owned, H.t('lib.emptyPlay'));
 }
 
 async function refreshLibrary() {
@@ -383,22 +384,22 @@ function renderCommunity() {
     view.innerHTML = `
         <div class="community">
             <div class="panel chat-box">
-                <h4>💬 Salon de discussion <span class="game-online" id="chat-room-label" style="float:right">${esc(store.chatRoom)}</span></h4>
+                <h4>${esc(H.t('comm.title'))} <span class="game-online" id="chat-room-label" style="float:right">${esc(store.chatRoom)}</span></h4>
                 <div class="chat-rooms" id="chat-rooms"></div>
                 <div class="chat-messages" id="chat-messages"></div>
                 <form class="chat-input-area" id="chat-form">
-                    <input type="text" id="chat-input" placeholder="Message..." autocomplete="off" ${store.token ? '' : 'disabled'} />
-                    <button class="btn btn-primary" type="submit" ${store.token ? '' : 'disabled'}>ENVOYER</button>
+                    <input type="text" id="chat-input" placeholder="${esc(H.t('comm.messagePh'))}" autocomplete="off" ${store.token ? '' : 'disabled'} />
+                    <button class="btn btn-primary" type="submit" ${store.token ? '' : 'disabled'}>${esc(H.t('comm.send'))}</button>
                 </form>
             </div>
             <div>
                 <div class="panel" style="margin-bottom:18px">
-                    <h4>🟢 Salles actives</h4>
-                    <div class="presence-list" id="room-list"><div class="lb-empty">Chargement...</div></div>
+                    <h4>${esc(H.t('comm.rooms'))}</h4>
+                    <div class="presence-list" id="room-list"><div class="lb-empty">${esc(H.t('detail.loading'))}</div></div>
                 </div>
                 <div class="panel">
-                    <h4>📡 Présence par jeu</h4>
-                    <div class="presence-list" id="presence-list"><div class="lb-empty">Chargement...</div></div>
+                    <h4>${esc(H.t('comm.presence'))}</h4>
+                    <div class="presence-list" id="presence-list"><div class="lb-empty">${esc(H.t('detail.loading'))}</div></div>
                 </div>
             </div>
         </div>`;
@@ -414,7 +415,7 @@ function renderCommunity() {
             wsSend({ action: 'send_chat_message', room: store.chatRoom, content: input.value.trim() });
             input.value = '';
         } else if (!store.token) {
-            toast('Connecte-toi pour parler dans le chat.', 'info');
+            toast(H.t('comm.needLogin'), 'info');
             openAuth();
         }
     };
@@ -427,7 +428,7 @@ function renderChatRooms(rooms) {
     const el = $('#chat-rooms');
     if (!el) return;
     el.innerHTML = rooms.map(r => `
-        <button class="chat-room-btn ${r === store.chatRoom ? 'active' : ''}" data-room="${esc(r)}">${r === 'global_hub' ? '🌐 GLOBAL' : esc(r)}</button>`).join('');
+        <button class="chat-room-btn ${r === store.chatRoom ? 'active' : ''}" data-room="${esc(r)}">${r === 'global_hub' ? esc(H.t('comm.global')) : esc(r)}</button>`).join('');
     $$('.chat-room-btn', el).forEach(b => b.onclick = () => {
         store.chatRoom = b.dataset.room;
         wsSend({ action: 'join_chat_room', room: store.chatRoom });
@@ -442,9 +443,9 @@ function renderChat() {
     if (!el) return;
     if (label) label.textContent = store.chatRoom;
     const msgs = store.chat.get(store.chatRoom) || [];
-    if (!msgs.length) { el.innerHTML = '<div class="lb-empty">Aucun message. Sois le premier !</div>'; return; }
+    if (!msgs.length) { el.innerHTML = `<div class="lb-empty">${esc(H.t('comm.chatEmpty'))}</div>`; return; }
     el.innerHTML = msgs.map(m => {
-        const t = m.ts ? new Date(m.ts * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+        const t = H.fmtTime(m.ts);
         return `<div class="chat-msg"><span class="cm-time">${t}</span><div class="cm-sender">${esc(m.sender)}</div><div class="cm-text">${esc(m.content)}</div></div>`;
     }).join('');
     el.scrollTop = el.scrollHeight;
@@ -456,12 +457,12 @@ function renderCommunityOnline() {
     if (!roomEl || !presEl) return;
     const active = store.rooms.filter(r => r.players > 0);
     roomEl.innerHTML = active.length
-        ? active.map(r => `<div class="presence-row"><span class="pr-name">${esc(r.name || r.id)} <span style="color:var(--muted)">(${esc(r.phase)})</span></span><span class="pr-online"><b>${r.players}</b> joueur${r.players > 1 ? 's' : ''}</span></div>`).join('')
-        : '<div class="lb-empty">Aucune partie en cours.</div>';
+        ? active.map(r => `<div class="presence-row"><span class="pr-name">${esc(r.name || r.id)} <span style="color:var(--muted)">(${esc(r.phase)})</span></span><span class="pr-online"><b>${r.players}</b> ${esc(H.t(r.players > 1 ? 'comm.players' : 'comm.player', { n: '' }))}</span></div>`).join('')
+        : `<div class="lb-empty">${esc(H.t('comm.roomsEmpty'))}</div>`;
     const sorted = Object.entries(store.online).sort((a, b) => b[1] - a[1]);
     presEl.innerHTML = sorted.map(([gid, n]) => {
         const g = store.catalog.find(x => x.id === gid);
-        return `<div class="presence-row"><span class="pr-name">${esc(g ? g.icon + ' ' + g.name : gid)}</span><span class="pr-online"><b>${n}</b> en ligne</span></div>`;
+        return `<div class="presence-row"><span class="pr-name">${esc(g ? g.icon + ' ' + g.name : gid)}</span><span class="pr-online"><b>${n}</b> ${esc(H.t('comm.onlineNow', { n: '' }))}</span></div>`;
     }).join('');
 }
 
@@ -473,16 +474,16 @@ function renderStudio() {
         <section class="studio-hero">
             <div class="sh-icon">🎛️</div>
             <div>
-                <h1>Studio de jeux</h1>
-                <p>Crée ton propre jeu de stratégie sans coder : unités, contres, terrains, bâtiments, économie et combat. Puis joue-le dans la boutique et la bibliothèque.</p>
+                <h1>${esc(H.t('studio.title'))}</h1>
+                <p>${esc(H.t('studio.desc'))}</p>
             </div>
             <div class="sh-actions">
-                <a class="btn btn-gold btn-lg" href="games/studio/index.html">＋ CRÉER UN JEU</a>
+                <a class="btn btn-gold btn-lg" href="games/studio/index.html">${esc(H.t('studio.create'))}</a>
             </div>
         </section>
-        <h2 class="section-title">🎮 Jeux créés dans le Studio <small>${created.length}</small></h2>
+        <h2 class="section-title">${esc(H.t('studio.created'))} <small>${created.length}</small></h2>
         <div class="games-grid" id="studio-grid"></div>`;
-    renderGrid($('#studio-grid'), created, 'Aucun jeu créé. Lance le Studio pour en créer un !');
+    renderGrid($('#studio-grid'), created, H.t('studio.empty'));
 }
 
 // ─── Init ──────────────────────────────────────────────────────────
@@ -497,6 +498,10 @@ function particles() {
 }
 
 async function init() {
+    H.applyStatic();
+    const sel = $('#hub-lang-select');
+    if (sel) sel.onchange = e => H.setLang(e.target.value);
+    window.__hubOnLangChange = () => { renderUserZone(); route(); };
     particles();
     renderUserZone();
     connectWS();
