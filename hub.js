@@ -1070,6 +1070,51 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < 12; i++) ctx.fillRect((i * 37 + 15) % 480, (i * 23 + 8) % 60, 1.2, 1.2);
     }
 
+    function drawT3alamPreview(c) {
+        const ctx = c.getContext('2d');
+        const g = ctx.createLinearGradient(0, 0, 0, 200);
+        g.addColorStop(0, '#0a2a5a'); g.addColorStop(0.6, '#0e4a8a'); g.addColorStop(1, '#0984e3');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, 480, 200);
+
+        // Sun glow
+        ctx.fillStyle = 'rgba(255, 220, 120, 0.18)';
+        ctx.beginPath(); ctx.arc(390, 50, 46 + Math.sin(frame * 0.03) * 4, 0, Math.PI * 2); ctx.fill();
+
+        // Ground dunes
+        ctx.fillStyle = '#0a3a6a';
+        ctx.beginPath(); ctx.ellipse(120, 190, 180, 40, 0, Math.PI, 0); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(360, 195, 190, 46, 0, Math.PI, 0); ctx.fill();
+
+        // Floating Arabic letters (alphabet journey)
+        const letters = ['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د'];
+        ctx.font = 'bold 22px "Segoe UI", sans-serif'; ctx.textAlign = 'center';
+        letters.forEach((ch, i) => {
+            const lx = 40 + i * 55;
+            const ly = 150 - (Math.abs(i - 3.5) * 14) + Math.sin(frame * 0.04 + i * 0.8) * 6;
+            ctx.fillStyle = ['#ffd166', '#ff9f43', '#54a0ff', '#5f27cd', '#ff6b6b', '#2ecc71', '#f368e0', '#feca57'][i];
+            ctx.beginPath(); ctx.arc(lx, ly, 14, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#0b1f3a'; ctx.fillText(ch, lx, ly + 8);
+        });
+
+        // Lion mascot
+        const lx = 240, ly = 96 + Math.sin(frame * 0.05) * 4;
+        ctx.fillStyle = '#d9a14b'; ctx.beginPath(); ctx.arc(lx, ly, 20, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#c48a34'; ctx.beginPath(); ctx.arc(lx - 14, ly - 12, 8, 0, Math.PI * 2); ctx.arc(lx + 14, ly - 12, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#2b2b2b';
+        ctx.beginPath(); ctx.arc(lx - 7, ly - 2, 2.4, 0, Math.PI * 2); ctx.arc(lx + 7, ly - 2, 2.4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(lx, ly + 6, 4, 0, Math.PI); ctx.strokeStyle = '#2b2b2b'; ctx.lineWidth = 1.6; ctx.stroke();
+
+        // Title
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 17px "Segoe UI", sans-serif';
+        ctx.fillText('رحلة الحروف', 360, 130);
+        ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = '11px "Segoe UI", sans-serif';
+        ctx.fillText('Alif → Ya', 360, 148);
+
+        // Stars
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        for (let i = 0; i < 14; i++) ctx.fillRect((i * 37 + 15) % 480, (i * 23 + 8) % 70, 1.2, 1.2);
+    }
+
     const drawers = {
         platform: drawPlatformPreview,
         fight: drawFightPreview,
@@ -1083,7 +1128,8 @@ document.addEventListener('DOMContentLoaded', () => {
         carthage: drawCarthagePreview,
         carthage_platformer: drawCarthagePlatformerPreview,
         engine: drawEnginePreview,
-        strat: drawStratPreview
+        strat: drawStratPreview,
+        t3alam: drawT3alamPreview
     };
 
     function drawGenericPreview(c) {

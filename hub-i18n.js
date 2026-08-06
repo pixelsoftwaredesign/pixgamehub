@@ -488,6 +488,7 @@ const GENRES = {
   'Platformer':   { fr: 'Platformer', en: 'Platformer', ar: 'منصات', es: 'Plataformas', ja: 'プラットフォーマー', zh: '平台跳跃' },
   'Moteur':       { fr: 'Moteur', en: 'Engine', ar: 'محرك', es: 'Motor', ja: 'エンジン', zh: '引擎' },
   'Créateur':     { fr: 'Créateur', en: 'Creator', ar: 'منشئ', es: 'Creador', ja: 'クリエイター', zh: '创作器' },
+  'Éducatif':     { fr: 'Éducatif', en: 'Educational', ar: 'تعليمي', es: 'Educativo', ja: '教育', zh: '教育' },
 };
 
 let saved = null;
