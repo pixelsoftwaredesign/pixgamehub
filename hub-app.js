@@ -38,9 +38,15 @@ function toast(msg, type = 'info') {
 }
 
 // ─── WebSocket ─────────────────────────────────────────────────────
-function connectWS() {
+function wsTarget() {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    store.ws = new WebSocket(`${proto}//${location.host}`);
+    const h = location.hostname;
+    const onBackend = h === 'localhost' || h === '127.0.0.1' || h.endsWith('.railway.app');
+    return `${proto}//${onBackend ? location.host : 'pixgamehub-production.up.railway.app'}/api/ws`;
+}
+
+function connectWS() {
+    store.ws = new WebSocket(wsTarget());
     store.ws.onopen = () => {
         store.wsReady = true;
         if (store.token) store.ws.send(JSON.stringify({ action: 'auth', token: store.token }));

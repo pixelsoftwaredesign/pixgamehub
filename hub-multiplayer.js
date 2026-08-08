@@ -7,7 +7,9 @@
     'use strict';
 
     const WS_PROTO = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const WS_URL = `${WS_PROTO}//${location.host}`;
+    const __hubWsHost = (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.endsWith('.railway.app'))
+        ? location.host : 'pixgamehub-production.up.railway.app';
+    const WS_URL = `${WS_PROTO}//${__hubWsHost}/api/ws`;
     const API_URL = `${location.origin}/api`;
 
     let ws = null;
